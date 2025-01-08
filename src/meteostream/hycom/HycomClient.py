@@ -1,6 +1,7 @@
 import pandas as pd
+import xarray as xr
 from siphon.catalog import TDSCatalog
-from typing import Dict
+from typing import Dict, Optional, Union
 from datetime import datetime as dt
 
 class HycomClient:
@@ -19,6 +20,18 @@ class HycomClient:
 
     def __init__(self):
         """Initialize the client and retrieve forecast runs."""
+        
+        self.sst_var_ID: str = 'water_temp'
+        self.ssu_var_ID: str = 'water_u'
+        self.ssv_var_ID: str = 'water_v'
+
+        self.time_dim = None # Might have to update with the OPENDAP decoder 
+        self.level_dim = None # Might have to update this attr if we want to do
+                              # mean level calulations
+
+        self.latitude_dim: str = 'lat'
+        self.longitude_dim: str = 'lon'
+        
         self.url_dict = {
             'sst': self.SST_URL,
             'ssu': self.SSU_URL,
@@ -26,9 +39,13 @@ class HycomClient:
         }
     
         self.forecast_runs = self._get_forecast_runs()
+        
 
-    def _get_forecast_runs(self) -> Dict[str, List[pd.Timestamp]]:
-        """Retrieve all available forecast timestamps for each variable."""
+    def _get_forecast_runs(self) -> pd.Dataframe:
+        """
+        Retrieve all available forecast timestamps for each variable.
+        Returned as a pandas.Dataframe obj with the variable as the idx. 
+        """
         runs = {}
 
         for var, url in self.url_dict.items():
@@ -53,10 +70,27 @@ class HycomClient:
             except Exception as e:
                 runs[var] = f"Error: {e}"
 
-        return runs
+        df = pd.DataFrame.from_dict(runs, orient='index', columns=['time'])
+
+        return df
+
+    def _regrid_data(self, ds: Union[xr.Dataset, List[xr.Dataset]]) -> Union[xr.Dataset, List[xr.Dataset]]:
+            """Returns an xr.Dataset with a uniform grid (0.25x0.25deg spatial resolution).
+               Default HYCOM resolution is 0.125x0.25deg, which is not suitable for the xyz and RAF install.
+            """
     
-    def _decode_dataset_OPENDAP(self, ds)
+            # Check if ds is a list of datasets
+            if isinstance(ds, list):
+                regridded_datasets = []  # Use a properly named list
+                for dataset in ds:
+                    regridded_datasets.append(dataset.isel(lat=slice(None, None, 2)))
+                return regridded_datasets  # Return a list of regridded datasets
+    
+            # If a single dataset is provided, process and return it
+            return ds.isel(lat=slice(None, None, 2))
+    
+    def _decode_dataset_OPENDAP(self, ds):
         pass
     
-    def get_latest_forecast(self, var):
+    def get_latest_forecast(self, var:str) -> xr.Dataset:
         pass 
