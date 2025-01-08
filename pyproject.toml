@@ -1,1 +1,37 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]  # Tools required to build the project
+build-backend = "setuptools.build_meta"  # The build backend to use
 
+[project]
+name = "meteostream"
+version = "0.1.0"
+description = "A python package to fetch, download, and visualize weather data. Integrated with the AMI backend "
+authors = [
+    {name = "Tyler Radebaugh", email = "tylerradebaugh@amiwx.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "xarray",
+    "dask",
+    "matplotlib",
+    "cartopy",
+    "siphon",
+    "metpy",
+    "netcdf4",
+    "cfgrib",
+    "eccodes",
+    "ecmwflibs"
+]
+
+# Define optional development dependencies
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "flake8",
+    "mypy",
+    "black[jupyter]",
+    "pre-commit",
+]
