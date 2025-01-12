@@ -1,5 +1,6 @@
 import pandas as pd
 import xarray as xr
+import siphon as si 
 from siphon.catalog import TDSCatalog
 from typing import  Union, List
 from datetime import datetime as dt
@@ -38,11 +39,33 @@ class HycomClient:
             'ssv': self.SSV_URL
         }
     
-        self.forecast_runs = self._get_forecast_runs()
-        self.is_run_complete = None # initialize the attr that indicates how complete the dataset it
-        
 
-    def _get_forecast_runs(self) -> pd.Dataframe:
+        self.forecast_alignment = None # Init an attribute to check if all datasets have the same ref_time (server uploads can cause misbehaviors)
+
+    def get_latest_forecast(self, var:str) -> xr.Dataset:
+        pass 
+
+    def _check_dataset_completeness(self, dataset:si.catalog.Dataset) -> bool:
+        """
+        Check if the `siphon.catalog.Dataset` (aggregated) is complete.
+
+        Parameters
+        ----------
+        dataset : siphon.catalog.Dataset
+            The dataset to check for completeness.
+
+        Returns
+        -------
+        bool
+            True if the dataset is complete, False otherwise.
+        """
+
+        with xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False) as ds:
+            if len(ds['time_offset']) != 65:
+                return False
+            return True
+        
+    def get_forecast_df(self) -> pd.DataFrame:
         """
         Retrieve all available forecast timestamps for each variable.
         Returned as a pandas.Dataframe obj with the variable as the idx. 
@@ -56,22 +79,27 @@ class HycomClient:
 
                 if ds_list:  # Ensure datasets exist
                     timestamps = []
-                    
+                    completeness = []
                     # Extract timestamps from all datasets
                     for ds in ds_list:
                         timestamp_str = ds[-20:]  # Extract last 20 characters
                         timestamp = pd.to_datetime(timestamp_str, format='%Y-%m-%d %HZ')
                         timestamps.append(timestamp)
 
-                    runs[var] = timestamps  # Store all timestamps in a list
+                        # call _check_dataset_completeness
+                        complete = self._check_dataset_completeness(ds)
+                        completeness.append(complete)
+
+                    runs[var] = {"time": timestamps, "complete": completeness}  # Store results
 
                 else:
-                    runs[var] = []  # No datasets available
+                    runs[var] = {"time": [], "complete": []}  # No datasets available
 
             except Exception as e:
-                runs[var] = f"Error: {e}"
+                runs[var] = {"time": f"Error: {e}", "complete": False}
 
-        df = pd.DataFrame.from_dict(runs, orient='index', columns=['time'])
+        # Convert dictionary to DataFrame
+        df = pd.DataFrame.from_dict(runs, orient='index')
 
         return df
 
@@ -92,8 +120,11 @@ class HycomClient:
             # If a single dataset is provided, process and return it
             return ds.isel(lat=slice(None, None, 2))
     
-    def _decode_dataset_OPENDAP(self, ds):
-        pass
-    
-    def get_latest_forecast(self, var:str) -> xr.Dataset:
-        pass 
+    def _decode_dataset_OPENDAP(self, dataset:si.catalog.Dataset)->xr.Dataset:
+        """
+        """
+        ds = xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False)
+        ds = self._regrid_data(ds)
+
+        return ds
+
