@@ -1,5 +1,6 @@
 # Example script for hycom client usage in meteostream
-from meteostream.hycom import HycomClient
+from meteostream import HycomClient
 
-client = HycomClient
-print(dir(client))
+client = HycomClient()
+
+df = client.get_forecast_df()
