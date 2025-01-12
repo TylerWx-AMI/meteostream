@@ -1,7 +1,7 @@
 import pandas as pd
 import xarray as xr
 from siphon.catalog import TDSCatalog
-from typing import Dict, Optional, Union
+from typing import  Union, List
 from datetime import datetime as dt
 
 class HycomClient:
@@ -39,6 +39,7 @@ class HycomClient:
         }
     
         self.forecast_runs = self._get_forecast_runs()
+        self.is_run_complete = None # initialize the attr that indicates how complete the dataset it
         
 
     def _get_forecast_runs(self) -> pd.Dataframe:
@@ -74,7 +75,9 @@ class HycomClient:
 
         return df
 
-    def _regrid_data(self, ds: Union[xr.Dataset, List[xr.Dataset]]) -> Union[xr.Dataset, List[xr.Dataset]]:
+    def _regrid_data(self, 
+                     ds: Union[xr.Dataset, 
+                     List[xr.Dataset]]) -> Union[xr.Dataset, List[xr.Dataset]]:
             """Returns an xr.Dataset with a uniform grid (0.25x0.25deg spatial resolution).
                Default HYCOM resolution is 0.125x0.25deg, which is not suitable for the xyz and RAF install.
             """

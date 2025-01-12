@@ -23,8 +23,7 @@ dependencies = [
     "netcdf4",
     "cfgrib",
     "eccodes",
-    "ecmwflibs"
-]
+    ]
 
 # Define optional development dependencies
 [project.optional-dependencies]
