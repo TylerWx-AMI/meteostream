@@ -68,38 +68,42 @@ class HycomClient:
     def get_forecast_df(self) -> pd.DataFrame:
         """
         Retrieve all available forecast timestamps for each variable.
-        Returned as a pandas.Dataframe obj with the variable as the idx. 
+        Returned as a pandas.Dataframe object with the variable, timestamp as the idx.
+        Used to check if the dataserver is updated with the latest completed dataset (completeness)
+
+        Returns:
+        ----------
+        df : pandas.Dataframe
+            pandas dataframe object with the variable, forecast time, and completeness (bool)
+
         """
-        runs = {}
+        timestamps = []
+        completeness = []
+        vars = []
 
         for var, url in self.url_dict.items():
-            try:
-                cat = TDSCatalog(url)
-                ds_list = list(cat.datasets)  # Convert dataset collection to a list
+            cat = TDSCatalog(url)
+            ds_list = cat.datasets
 
-                if ds_list:  # Ensure datasets exist
-                    timestamps = []
-                    completeness = []
-                    # Extract timestamps from all datasets
-                    for ds in ds_list:
-                        timestamp_str = ds[-20:]  # Extract last 20 characters
-                        timestamp = pd.to_datetime(timestamp_str, format='%Y-%m-%d %HZ')
-                        timestamps.append(timestamp)
+            for time, ds in ds_list.items():
+                vars.append(var)
 
-                        # call _check_dataset_completeness
-                        complete = self._check_dataset_completeness(ds)
-                        completeness.append(complete)
+                time_str = time[-20:]
+                pd_datetime = pd.to_datetime(time_str)
+                timestamp = pd.Timestamp(pd_datetime).strftime('%y-%m-%d %HZ ')
+                timestamps.append(timestamp)
 
-                    runs[var] = {"time": timestamps, "complete": completeness}  # Store results
+                complete = self._check_dataset_completeness(ds)
+                completeness.append(complete)
 
-                else:
-                    runs[var] = {"time": [], "complete": []}  # No datasets available
+        df = pd.DataFrame({
+            "variable":vars, 
+            "forecast_run":timestamps, 
+            "complete": completeness
+            }
+        )
 
-            except Exception as e:
-                runs[var] = {"time": f"Error: {e}", "complete": False}
-
-        # Convert dictionary to DataFrame
-        df = pd.DataFrame.from_dict(runs, orient='index')
+        df.set_index(['variable', 'forecast_run'], inplace=True) 
 
         return df
 
