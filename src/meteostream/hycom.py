@@ -248,6 +248,17 @@ class HycomClient:
         file_path :Optional[str] = "ESPC_hycom.nc", 
         level : Optional[Union[int, Tuple[int, int]]] = 0)-> None: 
         """
+        Download the latest hycom dataset. Optional kwargs are the file_path and the level
+        selection.
+
+        Parameters:
+        -----------
+        file_path: str
+            file path to save the dataset to
+
+        level: int, tuple(int, int)
+            select a single level or slice a range of levels. Default is 0 
+
         """
 
         ds = self.get_latest_dataset()
