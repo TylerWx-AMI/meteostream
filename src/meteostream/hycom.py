@@ -1,6 +1,6 @@
 import pandas as pd
 import xarray as xr
-import siphon as si 
+import siphon
 from siphon.catalog import TDSCatalog
 from typing import  Union, List
 from datetime import datetime as dt
@@ -45,7 +45,7 @@ class HycomClient:
     def get_latest_forecast(self, var:str) -> xr.Dataset:
         pass 
 
-    def _check_dataset_completeness(self, dataset:si.catalog.Dataset) -> bool:
+    def _check_dataset_completeness(self, dataset:siphon.catalog.Dataset) -> bool:
         """
         Check if the `siphon.catalog.Dataset` (aggregated) is complete.
 
@@ -72,7 +72,7 @@ class HycomClient:
         Used to check if the dataserver is updated with the latest completed dataset (completeness)
 
         Returns:
-        ----------
+        --------
         df : pandas.Dataframe
             pandas dataframe object with the variable, forecast time, and completeness (bool)
 
@@ -124,7 +124,7 @@ class HycomClient:
             # If a single dataset is provided, process and return it
             return ds.isel(lat=slice(None, None, 2))
     
-    def _decode_dataset_OPENDAP(self, dataset:si.catalog.Dataset)->xr.Dataset:
+    def _decode_dataset_OPENDAP(self, dataset:siphon.catalog.Dataset)->xr.Dataset:
         """
         """
         ds = xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False)
@@ -132,3 +132,40 @@ class HycomClient:
 
         return ds
 
+    def check_server_alignment(self) -> bool:
+        """
+        Internal function to check the alignment of the aggregated datasets on the HYCOM servers.
+        If the forecast runs are not identical - returns false. If forecast runs are not complete - 
+        returns false. Both forecast times and full datasets are required to return True. 
+
+        Returns:
+        --------
+        self.forecast_alignment : bool 
+            Boolean value to indicate if the forecast runs are matching AND complete
+        """
+
+        # Get the catalog information as a pandas df 
+        df = self.get_forecast_df()
+
+         # Get latest timestamp per var
+        latest_timestamps = df.groupby(level="var").head(1)
+
+        # Check if all latest timestamps are identical
+        all_same_timestamp = latest_timestamps.index.get_level_values("time").nunique() == 1
+
+        # Check if all latest timestamps have complete = True
+        all_complete = latest_timestamps["complete"].all()
+
+        # Final condition
+        if all_same_timestamp and all_complete:
+            self.forecast_alignment = True
+            print("Server forecasts are aligned and complete")
+            return self.forecast_alignment
+        
+        self.forecast_alignment = False
+        print("Condition not met: Either timestamps differ or some are incomplete.")
+        return self.forecast_alignment
+            
+       
+
+        
