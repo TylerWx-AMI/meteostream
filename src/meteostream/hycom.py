@@ -147,25 +147,35 @@ class HycomClient:
         # Get the catalog information as a pandas df 
         df = self.get_forecast_df()
 
-         # Get latest timestamp per var
-        latest_timestamps = df.groupby(level="var").head(1)
+                # Get the latest timestamp per variable
+        latest_timestamps = df.groupby(level="variable").head(1)
 
-        # Check if all latest timestamps are identical
-        all_same_timestamp = latest_timestamps.index.get_level_values("time").nunique() == 1
+        # Extract latest timestamps and check uniqueness
+        unique_timestamps = latest_timestamps.index.get_level_values("forecast_run").unique()
+        all_same_timestamp = len(unique_timestamps) == 1
 
         # Check if all latest timestamps have complete = True
         all_complete = latest_timestamps["complete"].all()
 
-        # Final condition
         if all_same_timestamp and all_complete:
             self.forecast_alignment = True
-            print("Server forecasts are aligned and complete")
             return self.forecast_alignment
+
+        else:
+            self.forecast_alignment = False
+            issues = []  # List to store failed conditions
+
+            if not all_same_timestamp:
+                issues.append(f"Different timestamps detected: {unique_timestamps}")
+
+            if not all_complete:
+                incomplete_vars = latest_timestamps[latest_timestamps["complete"] == False].index.get_level_values("variable").tolist()
+                issues.append(f"Forecast times are identical but are incomplete: {incomplete_vars}")
+
+            # Print detailed issues
+            for issue in issues:
+                print(issue)
         
-        self.forecast_alignment = False
-        print("Condition not met: Either timestamps differ or some are incomplete.")
         return self.forecast_alignment
-            
-       
 
         
