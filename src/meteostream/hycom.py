@@ -229,15 +229,13 @@ class HycomClient:
                     cat = TDSCatalog(url)
                     latest_ds = cat.datasets[0]
 
-                    ds = self._decode_dataset_OPENDAP
+                    ds = self._decode_dataset_OPENDAP(latest_ds)
                     dataset_list.append(ds)
             
             ds = xr.merge(dataset_list)
             return ds 
 
-        return print("Server not aligned propely, cannot grab complete dataset at this time")
-
-
+        return print("Server not aligned, cannot return the completed datasets at this time")
         
 
         
