@@ -13,7 +13,10 @@ class HycomClient:
     MAX_NCSS_CONNECTIONS: int = 1  
     active_connections: int = 0
     
-    """A client to fetch forecast runs from THREDDS Data Server."""
+    """
+    A client to fetch forecast runs and view current state of 
+    the HYCOME THREDDS Data Server.
+    """
     
     SST_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/runs/catalog.xml"
     SSU_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalog.xml"
@@ -42,9 +45,6 @@ class HycomClient:
 
         self.forecast_alignment = None # Init an attribute to check if all datasets have the same ref_time (server uploads can cause misbehaviors)
 
-    def get_latest_forecast(self, var:str) -> xr.Dataset:
-        pass 
-
     def _check_dataset_completeness(self, dataset:siphon.catalog.Dataset) -> bool:
         """
         Check if the `siphon.catalog.Dataset` (aggregated) is complete.
@@ -64,48 +64,6 @@ class HycomClient:
             if len(ds['time_offset']) != 65:
                 return False
             return True
-        
-    def get_forecast_df(self) -> pd.DataFrame:
-        """
-        Retrieve all available forecast timestamps for each variable.
-        Returned as a pandas.Dataframe object with the variable, timestamp as the idx.
-        Used to check if the dataserver is updated with the latest completed dataset (completeness)
-
-        Returns:
-        --------
-        df : pandas.Dataframe
-            pandas dataframe object with the variable, forecast time, and completeness (bool)
-
-        """
-        timestamps = []
-        completeness = []
-        vars = []
-
-        for var, url in self.url_dict.items():
-            cat = TDSCatalog(url)
-            ds_list = cat.datasets
-
-            for time, ds in ds_list.items():
-                vars.append(var)
-
-                time_str = time[-20:]
-                pd_datetime = pd.to_datetime(time_str)
-                timestamp = pd.Timestamp(pd_datetime).strftime('%y-%m-%d %HZ ')
-                timestamps.append(timestamp)
-
-                complete = self._check_dataset_completeness(ds)
-                completeness.append(complete)
-
-        df = pd.DataFrame({
-            "variable":vars, 
-            "forecast_run":timestamps, 
-            "complete": completeness
-            }
-        )
-
-        df.set_index(['variable', 'forecast_run'], inplace=True) 
-
-        return df
 
     def _regrid_data(self, 
                      ds: Union[xr.Dataset, 
@@ -128,6 +86,8 @@ class HycomClient:
         """
         """
         ds = xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False)
+
+        
         ds = self._regrid_data(ds)
 
         return ds
@@ -171,11 +131,48 @@ class HycomClient:
             if not all_complete:
                 incomplete_vars = latest_timestamps[latest_timestamps["complete"] == False].index.get_level_values("variable").tolist()
                 issues.append(f"Forecast times are identical but are incomplete: {incomplete_vars}")
-
-            # Print detailed issues
-            for issue in issues:
-                print(issue)
         
         return self.forecast_alignment
 
+    def get_forecast_df(self) -> pd.DataFrame:
+            """
+            Retrieve all available forecast timestamps for each variable.
+            Returned as a pandas.Dataframe object with the variable, timestamp as the idx.
+            Used to check if the dataserver is updated with the latest completed dataset (completeness)
+
+            Returns:
+            --------
+            df : pandas.Dataframe
+                pandas dataframe object with the variable, forecast time, and completeness (bool)
+
+            """
+            timestamps = []
+            completeness = []
+            vars = []
+
+            for var, url in self.url_dict.items():
+                cat = TDSCatalog(url)
+                ds_list = cat.datasets
+
+                for time, ds in ds_list.items():
+                    vars.append(var)
+
+                    time_str = time[-20:]
+                    pd_datetime = pd.to_datetime(time_str)
+                    timestamp = pd.Timestamp(pd_datetime).strftime('%y-%m-%d %HZ ')
+                    timestamps.append(timestamp)
+
+                    complete = self._check_dataset_completeness(ds)
+                    completeness.append(complete)
+
+            df = pd.DataFrame({
+                "variable":vars, 
+                "forecast_run":timestamps, 
+                "complete": completeness
+                }
+            )
+
+            df.set_index(['variable', 'forecast_run'], inplace=True) 
+
+            return df
         
