@@ -245,7 +245,7 @@ class HycomClient:
     
     def download_dataset(
         self, 
-        file_path :Optional[str] = "", 
+        file_path :Optional[str] = "ESPC_hycom.nc", 
         level : Optional[Union[int, Tuple[int, int]]] = 0)-> None: 
         """
         """
