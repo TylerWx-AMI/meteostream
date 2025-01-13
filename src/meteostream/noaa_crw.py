@@ -1,4 +1,4 @@
-# Functions to call the Coral Reef Watch (observed) SST and SICE data
+# Module to access the Coral Reef Watch (observed) SST and SICE data
 import siphon.ncss
 import xarray as xr
 import siphon
