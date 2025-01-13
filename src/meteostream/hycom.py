@@ -84,10 +84,37 @@ class HycomClient:
     
     def _decode_dataset_OPENDAP(self, dataset:siphon.catalog.Dataset)->xr.Dataset:
         """
-        """
-        ds = xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False)
+        We must decode the dataset using pandas and datetime64 objects - as xarray 
+        cannot decode times properly, thus the times objects need to be assigned manually
 
-        
+        Parameters:
+        -----------
+
+        dataset : siphon.catalog.Dataset
+            The dataset object retrieved by the siphon API
+
+        Returns:
+        --------
+
+        dataset : xarray.Dataset
+            The xarray dataset decoded using pandas and returning datetime64 objects
+
+        """
+        ds_str = dataset.name
+        time_str = ds_str[-20:]
+        timestamp = pd.to_datetime(time_str)
+        timestamp = timestamp.to_datetime64()
+
+        ds = xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False)
+        time_offset = pd.to_timedelta(ds['time_offset'], unit='hours')
+        time_offset = pd.TimedeltaIndex(time_offset)
+        ds['valid_time'] = timestamp + time_offset
+
+        ds = ds.swap_dims({'time':'valid_time'})
+        ds = ds.drop_vars(['tau','time', 'time_offset']) 
+        ds = ds.assign_coords(ref_time=timestamp)
+        ds['ref_time'].attrs['long_name'] = "Forecast Run"
+
         ds = self._regrid_data(ds)
 
         return ds
