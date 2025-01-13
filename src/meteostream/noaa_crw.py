@@ -32,8 +32,13 @@ def get_latest_CRW()->xr.Dataset:
 
     return ds 
 
-def create_query()->Tuple[siphon.ncss.NCSS, siphon.ncss.NCSSQuery]:
+def _create_query()->Tuple[siphon.ncss.NCSS, siphon.ncss.NCSSQuery]:
     """
+    Initialize the siphon NCSS and Query objects for the SST and SICE variables
+
+    Returns:
+    siphon.ncss.NCSS, siphon.ncss.NCSSQuery: tuple
+        the NCSS and query objects
     """
     ncss = LATEST_DS.subset()
     query = ncss.query()
@@ -78,7 +83,7 @@ def latlon_point_data(
               {type(longitude).__name__}, {type(latitude).__name__}"
               )
     # Create the default ncss and query objects
-    ncss, query = create_query()
+    ncss, query = _create_query()
     query.lonlat_point(longitude, latitude)
 
     #Handle time arg:
@@ -162,7 +167,7 @@ def latlon_grid_data(
               {type(south).__name__}, {type(north).__name__}"
               )
     # Create the default ncss and query objects
-    ncss, query = create_query()
+    ncss, query = _create_query()
     query.lonlat_box(west, east, south, north)
 
     #Handle time arg:
