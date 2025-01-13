@@ -1,17 +1,18 @@
 import pandas as pd
 import xarray as xr
 import siphon
+import multiprocessing
 from siphon.catalog import TDSCatalog
-from typing import  Union, List, Optional
-from datetime import datetime as dt
+from typing import  Union, List, Optional, Tuple
+from dask.distributed import Client, progress
+
+# Define constants for simultaneous IP workers to the THREDDS servers. 
+# IP ban could relult if the below thresholds are exceeded.
+MAX_CONNECTIONS: int = 9
+MAX_NCSS_CONNECTIONS: int = 1  
+
 
 class HycomClient:
-    
-    # Define constants for simultaneous IP workers to the THREDDS servers. 
-    # IP ban could relult if the below thresholds are exceeded.
-    MAX_CONNECTIONS: int = 10
-    MAX_NCSS_CONNECTIONS: int = 1  
-    active_connections: int = 0
     
     """
     A client to fetch forecast runs and view current state of 
@@ -110,7 +111,11 @@ class HycomClient:
         timestamp = pd.to_datetime(time_str)
         timestamp = timestamp.to_datetime64()
 
-        ds = xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False)
+        ds = xr.open_dataset(
+            dataset.access_urls['OPENDAP'], 
+            decode_times=False,
+            chunks='auto')
+
         time_offset = pd.to_timedelta(ds['time_offset'], unit='hours')
         time_offset = pd.TimedeltaIndex(time_offset)
         ds['valid_time'] = timestamp + time_offset
@@ -236,6 +241,44 @@ class HycomClient:
             return ds 
 
         return print("Server not aligned, cannot return the completed datasets at this time")
+
+    
+    def download_dataset(
+        self, 
+        file_path :Optional[str] = "", 
+        level : Optional[Union[int, Tuple[int, int]]] = 0)-> None: 
+        """
+        """
+
+        ds = self.get_latest_dataset()
+
+        if ds is not None: 
+            try: 
+                if isinstance(level, int):
+                    ds = ds.sel(level=level)
+                elif isinstance(level, tuple):
+                    ds = ds.sel(level=slice(level[0], level[1]))
+                else:
+                    raise TypeError("Wrong datatype passed to method: require int or tuple(int, int)")
+            except Exception as e:
+                    print(f"{e}: Error in selecting dataset level")
+            
+            # initialize a dask client based on the system CPU configuration (allows for dynamic workflow)
+            client = Client(n_workers=MAX_CONNECTIONS)
+            # Raise an exception if more than 9 workers are detected
+            if len(client.scheduler_info()["workers"]) > MAX_CONNECTIONS:
+                raise Exception(f"More than {MAX_CONNECTIONS} workers detected! Limit exceeded.")
+
+            task = ds.to_netcdf(file_path, compute=False)
+            progress(task)
+            return print(f"Dataset saved to {file_path}")
+        
+        return print("Datasets are not aligned at this time: This is normal behavior from the HYCOM server if the latest forecast is not aggregated")
+
+
+
+
+
         
 
         

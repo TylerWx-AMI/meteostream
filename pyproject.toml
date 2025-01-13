@@ -15,7 +15,7 @@ dependencies = [
     "numpy",
     "pandas",
     "xarray",
-    "dask",
+    "dask[complete]",
     "matplotlib",
     "cartopy",
     "siphon",
