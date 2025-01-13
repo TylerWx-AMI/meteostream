@@ -169,3 +169,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+#Temporary dir/files
+tmp/
+*.nc
+*.grb
+*.grib
+*.grb2
+*.grib2

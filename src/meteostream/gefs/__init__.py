@@ -4,7 +4,7 @@ from .manager import move_old_gribs
 from .concat import concat_gribs, convert_to_netcdf
 
 # Default paths (can be overridden)
-BASE_DIR = os.path.expanduser("~/Ops-Scripts/data")
+BASE_DIR = os.path.expanduser("~/data")
 INPUT_DIR = os.path.join(BASE_DIR, "grib")
 OUTPUT_DIR = os.path.join(BASE_DIR, "selected_grib")
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
