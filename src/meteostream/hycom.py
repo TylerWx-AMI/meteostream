@@ -2,7 +2,7 @@ import pandas as pd
 import xarray as xr
 import siphon
 from siphon.catalog import TDSCatalog
-from typing import  Union, List
+from typing import  Union, List, Optional
 from datetime import datetime as dt
 
 class HycomClient:
@@ -42,6 +42,11 @@ class HycomClient:
             'ssv': self.SSV_URL
         }
     
+        self.variable_dict = {
+            'sst': self.sst_var_ID,
+            'ssu': self.ssu_var_ID,
+            'ssv': self.ssv_var_ID
+        }
 
         self.forecast_alignment = None # Init an attribute to check if all datasets have the same ref_time (server uploads can cause misbehaviors)
 
@@ -202,4 +207,41 @@ class HycomClient:
             df.set_index(['variable', 'forecast_run'], inplace=True) 
 
             return df
+
+    def get_latest_dataset(self) -> Union[xr.Dataset, None]:
+        """
+        Get the latest datasets from the HYCOM server (requires proper server aligment).
+
+        Returns:
+        --------
+        xarray.Dataset
+            The latest dataset
+        
+        or
+
+        None
+        """
+        dataset_list = []
+
+        # Check server alignment 
+        if self.check_server_alignment():
+            for var, url in self.url_dict.items():
+                    cat = TDSCatalog(url)
+                    latest_ds = cat.datasets[0]
+
+                    ds = self._decode_dataset_OPENDAP
+                    dataset_list.append(ds)
+            
+            ds = xr.merge(dataset_list)
+            return ds 
+
+        return print("Server not aligned propely, cannot grab complete dataset at this time")
+
+
+        
+
+        
+        
+
+
         
