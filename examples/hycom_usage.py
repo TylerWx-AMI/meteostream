@@ -28,5 +28,5 @@ while client.check_server_alignment() == False:
 
 # Set the file path
 file_path = "hycom_test.nc"
-client.download_dataset(file_path)
+client.download_dataset(file_path) # download through the client method 
 logging.INFO(f"Download Complete, saved to {file_path}")
