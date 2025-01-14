@@ -2,11 +2,11 @@
 import siphon.ncss
 import xarray as xr
 import siphon
+import io
 
 from siphon.catalog import TDSCatalog
 from datetime import datetime
 from typing import Union, Tuple
-
 
 #Define the URL Constant and Dataset index
 CRW_URL: str = "https://pae-paha.pacioos.hawaii.edu/thredds/satellite.xml"
@@ -14,9 +14,9 @@ CRW_IDX: int = 0
 
 CAT = TDSCatalog(CRW_URL)
 LATEST_DS = CAT.datasets[CRW_IDX]
-DATA_VARS = ("CRW_SEAICE", "CRW_SST")
+DATA_VARS = ["CRW_SEAICE", "CRW_SST"]
 
-def get_latest_CRW()->xr.Dataset:
+def get_latest_CRW_data()->xr.Dataset:
     """
     Return an xarray dataset with all variables and global coverage for the latest time 
     available. This function uses the OPENDAP access method. 
@@ -29,22 +29,9 @@ def get_latest_CRW()->xr.Dataset:
 
     ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
     ds = ds.isel(time=-1)
+    ds = ds[DATA_VARS]
 
     return ds 
-
-def _create_query()->Tuple[siphon.ncss.NCSS, siphon.ncss.NCSSQuery]:
-    """
-    Initialize the siphon NCSS and Query objects for the SST and SICE variables
-
-    Returns:
-    siphon.ncss.NCSS, siphon.ncss.NCSSQuery: tuple
-        the NCSS and query objects
-    """
-    ncss = LATEST_DS.subset()
-    query = ncss.query()
-    query.variables(DATA_VARS)
-
-    return ncss, query
 
 def latlon_point_data(
     latitude: Union[float, int], 
@@ -87,7 +74,8 @@ def latlon_point_data(
         query.time(time)
         try:
             data = ncss.get_data(query)
-            ds = xr.open_dataset(data)
+            data_bytes = io.BytesIO(data)
+            ds = xr.open_dataset(data_bytes, engine='netcdf4')
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
