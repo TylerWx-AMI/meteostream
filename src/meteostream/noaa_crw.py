@@ -14,10 +14,16 @@ CAT = TDSCatalog(CRW_URL)
 LATEST_DS = CAT.datasets[CRW_IDX]
 DATA_VARS = ["CRW_SEAICE", "CRW_SST"]
 
-def get_latest_CRW_data()->xr.Dataset:
+def get_latest_CRW_data(
+        file_path:Optional[str] = None
+        )->xr.Dataset:
     """
     Return an xarray dataset with all variables and global coverage for the latest time 
-    available. This function uses the OPENDAP access method. 
+    available, and save to file (optional). This function uses the OPENDAP access method. 
+
+    Parameters:
+    -----------
+    file_path: str or None
 
     Returns:
     --------
@@ -28,6 +34,9 @@ def get_latest_CRW_data()->xr.Dataset:
     ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
     ds = ds.isel(time=-1)
     ds = ds[DATA_VARS]
+
+    if file_path is not None:
+        _save_filepath(ds, file_path)
 
     return ds 
 
@@ -162,7 +171,7 @@ def latlon_grid_data(
 
             if file_path is not None:
                 _save_filepath(ds, file_path)
-                
+
         except IndexError:
             raise IndexError("Arguements are out of bounds")
         return ds
