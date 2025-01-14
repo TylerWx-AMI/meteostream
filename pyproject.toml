@@ -34,3 +34,7 @@ dev = [
     "black[jupyter]",
     "pre-commit",
 ]
+
+gefs = [
+    "pygrib"
+]
