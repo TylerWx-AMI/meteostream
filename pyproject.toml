@@ -23,6 +23,7 @@ dependencies = [
     "netcdf4",
     "cfgrib",
     "eccodes",
+    "zarr"
     ]
 
 # Define optional development dependencies
