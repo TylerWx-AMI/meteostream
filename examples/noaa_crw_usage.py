@@ -11,7 +11,7 @@ file_path="NOAA_CRW.nc"
 # We can call get_latest_CRW_data to either lazily load the dataset (xarray)
 # Or immediately save to a dataset if passed an output string (uses dask backend)
 
-# get_latest_CRW_data(file_path=file_path_global) 
+get_latest_CRW_data(file_path=file_path_global) 
 # the zarr would be exceptionally large, so this is discouraged
 # not recommended unless an HPC environemnt is introduced
 # Ideal use would be lazily loading the dataset into RAM (dask backed):
