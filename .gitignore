@@ -175,6 +175,7 @@ data/
 tmp/
 xyz/
 raf/
+*.zarr
 *.nc
 *.grb
 *.grib

@@ -39,11 +39,9 @@ def latlon_point_data(
     time: Union[datetime, Tuple[datetime, datetime]]
     ) -> xr.Dataset:
     """
-    Return the xarray dataset for a specified lat/lon point for one time or range of times. 
-    This functions calls a NCSS query from the Hawaii.edu THREDDS server for CRW data. Too large
-    requests may raise an Exception. Needs to be less than ~100MB. DO NOT USE PARALLEL PROCESSING
-    AGAINST THE SERVERS, as this might be discouraged practice from the server-side. 
-
+    Return the xarray dataset for a specified lat/lon point for one time or range of times 
+    from the Hawaii.edu THREDDS server for CRW data.
+  
     Parameters:
     -----------
     Latitude: float
@@ -66,16 +64,13 @@ def latlon_point_data(
     except TypeError:
         raise TypeError(f"Invalid longitude or latitude passed, expected float ot int, but detected: {type(longitude).__name__}, {type(latitude).__name__}")
     # Create the default ncss and query objects
-    ncss, query = _create_query()
-    query.lonlat_point(longitude, latitude)
-
+   
     #Handle time arg:
     if isinstance(time, datetime):
-        query.time(time)
         try:
-            data = ncss.get_data(query)
-            data_bytes = io.BytesIO(data)
-            ds = xr.open_dataset(data_bytes, engine='netcdf4')
+            ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
+            ds = ds.sel(time=time, latitude=latitude, longitude=longitude, method='nearest')
+            ds = ds[DATA_VARS]
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
@@ -84,10 +79,10 @@ def latlon_point_data(
         return ds
 
     elif isinstance(time, tuple) and len(time) == 2 and all(isinstance(t, datetime) for t in time):
-        query.time_range(time)
         try:
-            data = ncss.get_data(query)
-            ds = xr.open_dataset(data)
+            ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
+            ds = ds.sel(time=slice(time), latitude=latitude, longitude=longitude, method='nearest')
+            ds = ds[DATA_VARS]
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
@@ -106,10 +101,8 @@ def latlon_grid_data(
     time: Union[datetime, Tuple[datetime, datetime]]
     ) -> xr.Dataset:
     """
-    Return the xarray dataset for a specified lat/lon grid (bounds) for one time or range of times. 
-    This functions calls a NCSS query from the Hawaii.edu THREDDS server for CRW data. Too large
-    requests may raise an Exception. Needs to be less than ~100MB. DO NOT USE PARALLEL PROCESSING
-    AGAINST THE SERVERS, as this might be discouraged practice from the server-side. 
+    Return the xarray dataset for a specified lat/lon grid (bounds) for one time or range of times
+    from the Hawaii.edu THREDDS server for CRW data. 
 
     Parameters:
     -----------
@@ -145,32 +138,28 @@ def latlon_grid_data(
     except TypeError:
         raise TypeError(f"Invalid longitude or latitude passed, expected float ot int, but detected: {type(west).__name__}, {type(east).__name__}, {type(south).__name__}, {type(north).__name__}")
     # Create the default ncss and query objects
-    ncss, query = _create_query()
-    query.lonlat_box(west, east, south, north)
 
     #Handle time arg:
     if isinstance(time, datetime):
-        query.time(time)
         try:
-            data = ncss.get_data(query)
-            ds = xr.open_dataset(data)
+            ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
+            ds = ds.sel(time=time, latitude=slice(west, east), longitude=slice(north, south), method='nearest')
+            ds = ds[DATA_VARS]        
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
             raise Exception(f"An unexpected error occured")
-
-        return ds
+        return ds 
 
     elif isinstance(time, tuple) and len(time) == 2 and all(isinstance(t, datetime) for t in time):
-        query.time_range(time)
         try:
-            data = ncss.get_data(query)
-            ds = xr.open_dataset(data)
+            ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
+            ds = ds.sel(time=slice(time), latitude=slice(west, east), longitude=slice(north, south), method='nearest')
+            ds = ds[DATA_VARS]       
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
             raise Exception(f"An unexpected error occured")
-
         return ds
 
     else:
