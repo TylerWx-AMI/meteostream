@@ -171,6 +171,7 @@ cython_debug/
 .pypirc
 
 #Temporary dir/files
+data/
 tmp/
 *.nc
 *.grb
