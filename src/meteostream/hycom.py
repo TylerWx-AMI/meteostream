@@ -1,7 +1,6 @@
 import pandas as pd
 import xarray as xr
 import siphon
-import multiprocessing
 from siphon.catalog import TDSCatalog
 from typing import  Union, List, Optional, Tuple
 from dask.distributed import Client, progress
