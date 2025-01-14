@@ -204,7 +204,12 @@ def _save_filepath(ds: xr.Dataset, file_path:str) -> None:
     with ProgressBar():
         if file_path.endswith('.nc'):
             ds.to_netcdf(file_path)
+
+        elif file_path.endswith('.h5'):
+            ds.to_netcdf(file_path, engine='h5netcdf')
+
         elif file_path.endswith('.zarr'):
             ds.to_zarr(file_path)
+
         else:
             raise TypeError("unsupported file type to save, dataset not saved to disk")

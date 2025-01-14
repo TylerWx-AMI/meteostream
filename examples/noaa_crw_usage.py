@@ -5,12 +5,13 @@
 from meteostream import get_latest_CRW_data, latlon_point_data, latlon_grid_data
 from datetime import datetime
 
+file_path_global="NOAA_CRW.h5"
 file_path="NOAA_CRW.nc"
 
 # We can call get_latest_CRW_data to either lazily load the dataset (xarray)
 # Or immediately save to a dataset if passed an output string (uses dask backend)
 
-get_latest_CRW_data(file_path=file_path)
+get_latest_CRW_data(file_path=file_path_global)
 
 
 # We can specify a lat/lon coordinate pair for a time 
