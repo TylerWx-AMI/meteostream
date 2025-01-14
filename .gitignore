@@ -173,6 +173,8 @@ cython_debug/
 #Temporary dir/files
 data/
 tmp/
+xyz/
+raf/
 *.nc
 *.grb
 *.grib
