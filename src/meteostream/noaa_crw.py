@@ -1,10 +1,10 @@
 # Module to access the Coral Reef Watch (observed) SST and SICE data
 import xarray as xr
-import siphon
 
 from siphon.catalog import TDSCatalog
 from datetime import datetime
 from typing import Union, Tuple, Optional
+from dask.diagnostics import ProgressBar 
 
 #Define the URL Constant and Dataset index
 CRW_URL: str = "https://pae-paha.pacioos.hawaii.edu/thredds/satellite.xml"
@@ -16,7 +16,7 @@ DATA_VARS = ["CRW_SEAICE", "CRW_SST"]
 
 def get_latest_CRW_data(
         file_path:Optional[str] = None
-        )->xr.Dataset:
+        )-> Union[xr.Dataset, None]:
     """
     Return an xarray dataset with all variables and global coverage for the latest time 
     available, and save to file (optional). This function uses the OPENDAP access method. 
@@ -37,14 +37,16 @@ def get_latest_CRW_data(
 
     if file_path is not None:
         _save_filepath(ds, file_path)
+        return None
 
     return ds 
 
 def latlon_point_data(
     latitude: Union[float, int], 
     longitude: Union[float, int], 
-    time: Union[datetime, Tuple[datetime, datetime]]
-    ) -> xr.Dataset:
+    time: Union[datetime, Tuple[datetime, datetime]],
+    file_path: Optional[str] = None
+    ) -> Union[xr.Dataset, None]:
     """
     Return the xarray dataset for a specified lat/lon point for one time or range of times 
     from the Hawaii.edu THREDDS server for CRW data.
@@ -78,6 +80,11 @@ def latlon_point_data(
             ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
             ds = ds.sel(time=time, latitude=latitude, longitude=longitude, method='nearest')
             ds = ds[DATA_VARS]
+
+            if file_path is not None:
+                _save_filepath(ds, file_path)
+                return None
+        
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
@@ -90,6 +97,11 @@ def latlon_point_data(
             ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
             ds = ds.sel(time=slice(time), latitude=latitude, longitude=longitude, method='nearest')
             ds = ds[DATA_VARS]
+
+            if file_path is not None:
+                _save_filepath(ds, file_path)
+                return None
+        
         except IndexError:
             raise IndexError("Time out of bounds")
         except Exception:
@@ -107,7 +119,7 @@ def latlon_grid_data(
     north: Union[float, int], 
     time: Union[datetime, Tuple[datetime, datetime]],
     file_path: Optional[str] = None
-    ) -> xr.Dataset:
+    ) -> Union[xr.Dataset, None]:
     """
     Return the xarray dataset for a specified lat/lon grid (bounds) for one time or range of times
     from the Hawaii.edu THREDDS server for CRW data. 
@@ -157,6 +169,7 @@ def latlon_grid_data(
 
             if file_path is not None:
                 _save_filepath(ds, file_path)
+                return None
         
         except IndexError:
             raise IndexError("Arguements are out of bounds")
@@ -171,6 +184,7 @@ def latlon_grid_data(
 
             if file_path is not None:
                 _save_filepath(ds, file_path)
+                return None
 
         except IndexError:
             raise IndexError("Arguements are out of bounds")
@@ -187,10 +201,10 @@ def _save_filepath(ds: xr.Dataset, file_path:str) -> None:
     file_path : str
         The file path string to save to 
     """
-
-    if file_path.endswith('.nc'):
-        ds.to_netcdf(file_path)
-    elif file_path.endswith('.zarr'):
-        ds.to_zarr(file_path)
-    else:
-        raise TypeError("unsupported file type to save, dataset not saved to disk")
+    with ProgressBar():
+        if file_path.endswith('.nc'):
+            ds.to_netcdf(file_path)
+        elif file_path.endswith('.zarr'):
+            ds.to_zarr(file_path)
+        else:
+            raise TypeError("unsupported file type to save, dataset not saved to disk")
