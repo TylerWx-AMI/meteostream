@@ -5,7 +5,7 @@
 from meteostream import get_latest_CRW_data, latlon_point_data, latlon_grid_data
 from datetime import datetime
 
-file_path_global="NOAA_CRW.h5"
+file_path_global="NOAA_CRW.zarr"
 file_path="NOAA_CRW.nc"
 
 # We can call get_latest_CRW_data to either lazily load the dataset (xarray)
