@@ -31,7 +31,7 @@ def get_latest_CRW_data(
         The dataset containing the latest data (global) for the latest time
     """
 
-    ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
+    ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'], chunks='auto')
     ds = ds.isel(time=-1)
     ds = ds[DATA_VARS]
 
