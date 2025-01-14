@@ -87,8 +87,6 @@ def latlon_point_data(
         
         except IndexError:
             raise IndexError("Time out of bounds")
-        except Exception:
-            raise Exception(f"An unexpected error occured")
 
         return ds
 
@@ -107,9 +105,7 @@ def latlon_point_data(
         
         except IndexError:
             raise IndexError("Time out of bounds")
-        except Exception:
-            raise Exception(f"An unexpected error occured")
-
+        
         return ds
 
     else:
