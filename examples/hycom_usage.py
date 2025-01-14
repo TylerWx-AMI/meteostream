@@ -20,10 +20,12 @@ logging.basicConfig(
 
 # create a client instance
 client = HycomClient()
+client.ds_idx = 1
 
 # construct a while loop to esnure proper alignment
 while client.check_server_alignment() == False:
     logging.INFO("Server is not aligned: All data not uploaded, or misaligned forecast ref times")
+    print("sleeping for one hour")
     time.sleep(3600) # Sleep for an hour
 
 # Set the file path

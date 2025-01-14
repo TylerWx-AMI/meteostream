@@ -9,11 +9,11 @@ from typing import Union, Tuple
 
 
 #Define the URL Constant and Dataset index
-CRW_URL: str = "https://pae-paha.pacioos.hawaii.edu/thredds/satellite.html"
+CRW_URL: str = "https://pae-paha.pacioos.hawaii.edu/thredds/satellite.xml"
 CRW_IDX: int = 0
 
 CAT = TDSCatalog(CRW_URL)
-LATEST_DS = CAT(CRW_IDX)
+LATEST_DS = CAT.datasets[CRW_IDX]
 DATA_VARS = ("CRW_SEAICE", "CRW_SST")
 
 def get_latest_CRW()->xr.Dataset:
@@ -77,11 +77,7 @@ def latlon_point_data(
     try:
         longitude, latitude = float(longitude), float(latitude)
     except TypeError:
-        raise TypeError(
-              f"Invalid longitude or latitude passed, 
-              expected float ot int, but detected: 
-              {type(longitude).__name__}, {type(latitude).__name__}"
-              )
+        raise TypeError(f"Invalid longitude or latitude passed, expected float ot int, but detected: {type(longitude).__name__}, {type(latitude).__name__}")
     # Create the default ncss and query objects
     ncss, query = _create_query()
     query.lonlat_point(longitude, latitude)
@@ -112,8 +108,7 @@ def latlon_point_data(
         return ds
 
     else:
-        raise TypeError(f"Invalid time arguement for {time}:
-                        expected datetime obj, but passed {type(time).__name__}")
+        raise TypeError(f"Invalid time arguement for {time}: expected datetime obj, but passed {type(time).__name__}")
     
 def latlon_grid_data(
     west: Union[float, int], 
@@ -160,12 +155,7 @@ def latlon_grid_data(
             )
 
     except TypeError:
-        raise TypeError(
-              f"Invalid longitude or latitude passed, 
-              expected float ot int, but detected: 
-              {type(west).__name__}, {type(east).__name__},
-              {type(south).__name__}, {type(north).__name__}"
-              )
+        raise TypeError(f"Invalid longitude or latitude passed, expected float ot int, but detected: {type(west).__name__}, {type(east).__name__}, {type(south).__name__}, {type(north).__name__}")
     # Create the default ncss and query objects
     ncss, query = _create_query()
     query.lonlat_box(west, east, south, north)
@@ -196,5 +186,4 @@ def latlon_grid_data(
         return ds
 
     else:
-        raise TypeError(f"Invalid time arguement for {time}:
-                        expected datetime obj, but passed {type(time).__name__}")
+        raise TypeError(f"Invalid time arguement for {time}: expected datetime obj, but passed {type(time).__name__}")

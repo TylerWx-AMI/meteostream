@@ -122,7 +122,7 @@ class HycomClient:
         time_offset = pd.TimedeltaIndex(time_offset)
         ds['valid_time'] = timestamp + time_offset
 
-        ds = ds.swap_dims({'time':'valid_time'})
+        ds = ds[''].swap_dims({'valid_time':'time'})
         ds = ds.drop_vars(['tau','time', 'time_offset']) 
         ds = ds.assign_coords(ref_time=timestamp)
         ds['ref_time'].attrs['long_name'] = "Forecast Run"
@@ -231,18 +231,31 @@ class HycomClient:
         dataset_list = []
 
         # Check server alignment 
-        if self.check_server_alignment():
+        if self.ds_idx == 0:
+            if self.check_server_alignment():
+                for var, url in self.url_dict.items():
+                        cat = TDSCatalog(url)
+                        latest_ds = cat.datasets[self.ds_idx]
+
+                        ds = self._decode_dataset_OPENDAP(latest_ds)
+                        dataset_list.append(ds)
+                
+                ds = xr.merge(dataset_list)
+                return ds 
+            else:
+                return print("Server not aligned, cannot return the completed datasets at this time")
+        else:
             for var, url in self.url_dict.items():
-                    cat = TDSCatalog(url)
-                    latest_ds = cat.datasets[self.ds_idx]
+                cat = TDSCatalog(url)
+                latest_ds = cat.datasets[self.ds_idx]
 
-                    ds = self._decode_dataset_OPENDAP(latest_ds)
-                    dataset_list.append(ds)
+                ds = self._decode_dataset_OPENDAP(latest_ds)
+                dataset_list.append(ds)
+        
+                ds = xr.merge(dataset_list)
+                return ds 
             
-            ds = xr.merge(dataset_list)
-            return ds 
 
-        return print("Server not aligned, cannot return the completed datasets at this time")
 
     
     def download_dataset(
@@ -263,7 +276,7 @@ class HycomClient:
 
         """
 
-        ds = self.get_latest_dataset()
+        ds = self.get_dataset()
 
         if ds is not None: 
             try: 
