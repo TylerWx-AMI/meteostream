@@ -94,8 +94,11 @@ def latlon_point_data(
 
     elif isinstance(time, tuple) and len(time) == 2 and all(isinstance(t, datetime) for t in time):
         try:
+            start = time[0]
+            end = time[1]
             ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
-            ds = ds.sel(time=slice(time), latitude=latitude, longitude=longitude, method='nearest')
+            ds = ds.sel(time=slice(start, end)) 
+            ds = ds.sel(latitude=latitude, longitude=longitude, method='nearest')
             ds = ds[DATA_VARS]
 
             if file_path is not None:
@@ -178,8 +181,10 @@ def latlon_grid_data(
 
     elif isinstance(time, tuple) and len(time) == 2 and all(isinstance(t, datetime) for t in time):
         try:
+            start = time[0]
+            end = time[1]
             ds = xr.open_dataset(LATEST_DS.access_urls['OPENDAP'])
-            ds = ds.sel(time=slice(time), latitude=slice(north, south), longitude=slice(west, east))
+            ds = ds.sel(time=slice(start, end), latitude=slice(north, south), longitude=slice(west, east))
             ds = ds[DATA_VARS]       
 
             if file_path is not None:
