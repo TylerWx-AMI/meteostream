@@ -295,7 +295,12 @@ class HycomClient:
             if len(client.scheduler_info()["workers"]) > MAX_CONNECTIONS:
                 raise Exception(f"More than {MAX_CONNECTIONS} workers detected! Limit exceeded.")
 
-            task = ds.to_netcdf(file_path, compute=False)
+            if file_path.endswith(".nc"):
+                task = ds.to_netcdf(file_path, compute=False)
+            
+            elif file_path.endswith(".zarr"):
+                task = ds.to_zarr(file_path, compute=False)
+
             progress(task)
             return print(f"Dataset saved to {file_path}")
         
