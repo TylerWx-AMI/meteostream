@@ -22,6 +22,7 @@ dependencies = [
     "metpy",
     "netcdf4",
     "cfgrib",
+    "pygrib",
     "eccodes",
     "zarr",
     "h5netcdf"
@@ -34,9 +35,5 @@ dev = [
     "flake8",
     "mypy",
     "black[jupyter]",
-    "pre-commit",
-]
-
-gefs = [
-    "pygrib"
+    "pre-commit"
 ]
