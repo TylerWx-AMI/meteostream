@@ -4,7 +4,7 @@ import xarray as xr
 import siphon
 
 from siphon.catalog import TDSCatalog
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Union, Tuple
 
 
