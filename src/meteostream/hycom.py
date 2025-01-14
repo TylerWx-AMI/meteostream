@@ -49,6 +49,8 @@ class HycomClient:
             'ssv': self.ssv_var_ID
         }
 
+        self.ds_idx = 0
+
         self.forecast_alignment = None # Init an attribute to check if all datasets have the same ref_time (server uploads can cause misbehaviors)
 
     def _check_dataset_completeness(self, dataset:siphon.catalog.Dataset) -> bool:
@@ -213,7 +215,7 @@ class HycomClient:
 
             return df
 
-    def get_latest_dataset(self) -> Union[xr.Dataset, None]:
+    def get_dataset(self) -> Union[xr.Dataset, None]:
         """
         Get the latest datasets from the HYCOM server (requires proper server aligment).
 
@@ -232,7 +234,7 @@ class HycomClient:
         if self.check_server_alignment():
             for var, url in self.url_dict.items():
                     cat = TDSCatalog(url)
-                    latest_ds = cat.datasets[0]
+                    latest_ds = cat.datasets[self.ds_idx]
 
                     ds = self._decode_dataset_OPENDAP(latest_ds)
                     dataset_list.append(ds)
