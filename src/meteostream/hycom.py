@@ -4,12 +4,16 @@ import siphon
 from siphon.catalog import TDSCatalog
 from typing import  Union, List, Optional, Tuple
 from dask.distributed import Client, progress
+from datetime import datetime
 
 # Define constants for simultaneous IP workers to the THREDDS servers. 
 # IP ban could relult if the below thresholds are exceeded.
 MAX_CONNECTIONS: int = 9
 MAX_NCSS_CONNECTIONS: int = 1  
 
+SST_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/runs/catalog.xml"
+SSU_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalog.xml"
+SSV_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/runs/catalog.xml"
 
 class HycomClient:
     
@@ -18,16 +22,25 @@ class HycomClient:
     the HYCOME THREDDS Data Server.
     """
     
-    SST_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/runs/catalog.xml"
-    SSU_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalog.xml"
-    SSV_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/runs/catalog.xml"
 
     def __init__(self):
         """Initialize the client and retrieve forecast runs."""
-        
+
         self.sst_var_ID: str = 'water_temp'
         self.ssu_var_ID: str = 'water_u'
         self.ssv_var_ID: str = 'water_v'
+
+        self.SST_URL = SST_URL
+        self.SSU_URL = SSU_URL
+        self.SSV_URL = SSV_URL
+
+        self.URL_LIST = [self.SST_URL, self.SSU_URL, self.SSV_URL]
+
+        self.url_dict = {
+            'sst': self.SST_URL,
+            'ssu':self.SSU_URL,
+            'ssv':self.SSV_URL
+            }
 
         self.time_dim = None # Might have to update with the OPENDAP decoder 
         self.level_dim = None # Might have to update this attr if we want to do
@@ -35,22 +48,14 @@ class HycomClient:
 
         self.latitude_dim: str = 'lat'
         self.longitude_dim: str = 'lon'
-        
-        self.url_dict = {
-            'sst': self.SST_URL,
-            'ssu': self.SSU_URL,
-            'ssv': self.SSV_URL
-        }
-    
-        self.variable_dict = {
-            'sst': self.sst_var_ID,
-            'ssu': self.ssu_var_ID,
-            'ssv': self.ssv_var_ID
-        }
 
-        self.ds_idx = 0
+        self.sst_ds_idx = 0
+        self.ssu_ds_idx = 0 
+        self.ssv_ds_idx = 0
 
         self.forecast_alignment = None # Init an attribute to check if all datasets have the same ref_time (server uploads can cause misbehaviors)
+
+        self.server_df = None
 
     def _check_dataset_completeness(self, dataset:siphon.catalog.Dataset) -> bool:
         """
@@ -121,7 +126,7 @@ class HycomClient:
         time_offset = pd.TimedeltaIndex(time_offset)
         ds['valid_time'] = timestamp + time_offset
 
-        ds = ds[''].swap_dims({'valid_time':'time'})
+        # ds = ds.swap_dims({'time':'valid_time'})
         ds = ds.drop_vars(['tau','time', 'time_offset']) 
         ds = ds.assign_coords(ref_time=timestamp)
         ds['ref_time'].attrs['long_name'] = "Forecast Run"
@@ -209,10 +214,16 @@ class HycomClient:
                 "complete": completeness
                 }
             )
+            # Add a sub-index within each 'variable' group
+            df["sub_index"] = df.groupby("variable").cumcount()
 
-            df.set_index(['variable', 'forecast_run'], inplace=True) 
+            df.set_index(["variable", "forecast_run"], inplace=True) 
+            # Add a sub-index within each 'variable' group
 
-            return df
+            # Store as an attribute 
+            self.server_df = df
+
+            return self.server_df
 
     def get_dataset(self) -> Union[xr.Dataset, None]:
         """
@@ -232,7 +243,7 @@ class HycomClient:
         # Check server alignment 
         if self.ds_idx == 0:
             if self.check_server_alignment():
-                for url in self.url_dict.values():
+                for url in list(self.url_dict.values()):
                         cat = TDSCatalog(url)
                         latest_ds = cat.datasets[self.ds_idx]
 
@@ -242,9 +253,9 @@ class HycomClient:
                 ds = xr.merge(dataset_list)
                 return ds 
             else:
-                return print("Server not aligned, cannot return the completed datasets at this time")
+                return print("Server not aligned with the latest data, cannot return the completed datasets at this time")
         else:
-            for url in self.url_dict.values():
+            for url in list(self.url_dict.values()):
                 cat = TDSCatalog(url)
                 latest_ds = cat.datasets[self.ds_idx]
 
@@ -306,7 +317,33 @@ class HycomClient:
         return print("Datasets are not aligned at this time: This is normal behavior from the HYCOM server if the latest forecast is not aggregated")
 
 
+    def get_varidx(self, time: Union[datetime, str], df: Optional[pd.DataFrame] = None):
+        """
+        Get the sub-index value for a given forecast_run time for each variable.
+        
+        Parameters:
+            df (pd.DataFrame): The multi-index DataFrame (variable, sub_index).
+            target_time (str): The forecast_run time to search for (e.g., "25-01-13 12Z").
+        
+        Returns:
+            dict: A dictionary where keys are variables and values are sub-index values for the given time.
+        """
+        
+        # Handle df kwarg 
 
+        df = self.get_forecast_df() if df is None else df = self.server_df
+
+        results = {}
+
+        for variable, sub_df in df.groupby(level=0):  # Group by 'variable'
+            # Find rows matching the target_time in the forecast_run column
+            matching_rows = sub_df[sub_df["forecast_run"] == time]
+            if not matching_rows.empty:
+                # Get the sub_index (level 1 of the multi-index)
+                results[variable] = matching_rows.index.get_level_values(1).tolist()
+            else:
+                results[variable] = None  # No match found for this variable
+        return results
 
 
         
