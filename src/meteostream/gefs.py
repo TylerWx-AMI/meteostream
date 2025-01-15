@@ -18,18 +18,25 @@ class GefsClient:
             base_dir (str): Base directory for input/output storage.
             indices (List[int]): List of GRIB indices to extract.
         """
+        # Expand user home directory
         self.base_dir = os.path.expanduser(base_dir)
+
+        # Ensure base_dir exists
+        os.makedirs(self.base_dir, exist_ok=True)
+
+        # Define subdirectories
         self.input_dir = os.path.join(self.base_dir, "grib")
         self.output_dir = os.path.join(self.base_dir, "selected_grib")
         self.tmp_dir = os.path.join(self.base_dir, "tmp")
 
         self.indices = indices or [5, 6, 7, 8, 38, 39, 40]  # Default fields
 
-        # Ensure directories exist
+        # Ensure subdirectories exist
+        os.makedirs(self.input_dir, exist_ok=True)  # Fix: Ensure input_dir exists
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.tmp_dir, exist_ok=True)
 
-    def extract_grib_fields(self):
+    def _extract_grib_fields(self):
         """Extracts specified fields from GRIB files."""
         for filename in sorted(os.listdir(self.input_dir)):
             if filename.endswith(".grib2"):
@@ -55,7 +62,7 @@ class GefsClient:
                 except Exception as e:
                     print(f"Error opening {filename}: {e}")
 
-    def move_old_gribs(self):
+    def _move_old_gribs(self):
         """Moves processed GRIB files to a temporary storage directory."""
         for filename in os.listdir(self.input_dir):
             if filename.endswith(".grib2"):
@@ -64,7 +71,7 @@ class GefsClient:
                 shutil.move(src, dst)
                 print(f"Moved {filename} → {self.tmp_dir}")
 
-    def concat_gribs(self, merged_filename="merged_output.grib2"):
+    def _concat_gribs(self, merged_filename="merged_output.grib2"):
         """Merges all extracted GRIB files into a single GRIB file."""
         merged_filepath = os.path.join(self.output_dir, merged_filename)
 
@@ -76,7 +83,7 @@ class GefsClient:
 
         print(f"Merged all GRIB files into {merged_filepath}")
 
-    def convert_to_netcdf(self, netcdf_filename="merged_output.nc"):
+    def _convert_to_netcdf(self, netcdf_filename="merged_output.nc"):
         """Converts extracted GRIB files to a single NetCDF file."""
         datasets = []
 
@@ -95,10 +102,10 @@ class GefsClient:
     def process_pipeline(self):
         """Runs the full pipeline: extract, move, merge, convert."""
         print("Starting GRIB processing pipeline...")
-        self.extract_grib_fields()
-        self.move_old_gribs()
-        self.concat_gribs()
-        self.convert_to_netcdf()
+        self._extract_grib_fields()
+        self._move_old_gribs()
+        self._concat_gribs()
+        self._convert_to_netcdf()
         print(" GRIB processing pipeline completed!")
 
 

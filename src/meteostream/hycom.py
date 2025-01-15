@@ -232,7 +232,7 @@ class HycomClient:
         # Check server alignment 
         if self.ds_idx == 0:
             if self.check_server_alignment():
-                for var, url in self.url_dict.items():
+                for url in self.url_dict.values():
                         cat = TDSCatalog(url)
                         latest_ds = cat.datasets[self.ds_idx]
 
@@ -244,7 +244,7 @@ class HycomClient:
             else:
                 return print("Server not aligned, cannot return the completed datasets at this time")
         else:
-            for var, url in self.url_dict.items():
+            for url in self.url_dict.values():
                 cat = TDSCatalog(url)
                 latest_ds = cat.datasets[self.ds_idx]
 
