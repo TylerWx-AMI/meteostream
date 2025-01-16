@@ -3,8 +3,9 @@ import xarray as xr
 import siphon
 from siphon.catalog import TDSCatalog
 from typing import  Union, List, Optional, Tuple
-from dask.distributed import Client, progress
 from datetime import datetime
+
+from .noaa_crw import _save_filepath
 
 # Define constants for simultaneous IP workers to the THREDDS servers. 
 # IP ban could relult if the below thresholds are exceeded.
@@ -26,9 +27,9 @@ class HycomClient:
     def __init__(self):
         """Initialize the client and retrieve forecast runs."""
 
-        self.sst_var_ID: str = 'water_temp'
-        self.ssu_var_ID: str = 'water_u'
-        self.ssv_var_ID: str = 'water_v'
+        self.sst_var_ID = 'water_temp'
+        self.ssu_var_ID = 'water_u'
+        self.ssv_var_ID = 'water_v'
 
         self.SST_URL = SST_URL
         self.SSU_URL = SSU_URL
@@ -38,8 +39,8 @@ class HycomClient:
 
         self.url_dict = {
             'sst': self.SST_URL,
-            'ssu':self.SSU_URL,
-            'ssv':self.SSV_URL
+            'ssu': self.SSU_URL,
+            'ssv': self.SSV_URL
             }
 
         self.time_dim = None # Might have to update with the OPENDAP decoder 
@@ -53,9 +54,13 @@ class HycomClient:
         self.ssu_ds_idx = 0 
         self.ssv_ds_idx = 0
 
+        self.url_idx = None
+        
         self.forecast_alignment = None # Init an attribute to check if all datasets have the same ref_time (server uploads can cause misbehaviors)
 
-        self.server_df = None
+        self.server_df = None # Init the df attribute
+
+        self.latest_forecast_download = None # Init the latest forecast dataset for client awareness
 
     def _check_dataset_completeness(self, dataset:siphon.catalog.Dataset) -> bool:
         """
@@ -201,9 +206,7 @@ class HycomClient:
                     vars.append(var)
 
                     time_str = time[-20:]
-                    pd_datetime = pd.to_datetime(time_str)
-                    timestamp = pd.Timestamp(pd_datetime).strftime('%y-%m-%d %HZ ')
-                    timestamps.append(timestamp)
+                    timestamps.append(time_str)
 
                     complete = self._check_dataset_completeness(ds)
                     completeness.append(complete)
@@ -214,10 +217,13 @@ class HycomClient:
                 "complete": completeness
                 }
             )
+
+            df['forecast_run'] = pd.to_datetime(df['forecast_run']).dt.normalize()
+
             # Add a sub-index within each 'variable' group
             df["sub_index"] = df.groupby("variable").cumcount()
 
-            df.set_index(["variable", "forecast_run"], inplace=True) 
+            df.set_index(["variable", "sub_index"], inplace=True) 
             # Add a sub-index within each 'variable' group
 
             # Store as an attribute 
@@ -225,113 +231,112 @@ class HycomClient:
 
             return self.server_df
 
-    def get_dataset(self) -> Union[xr.Dataset, None]:
+    def get_dataset(
+        self, 
+        level: Optional[Union[int, Tuple[int, int]]] = None,
+        ref_time: Optional[datetime] = None,
+        file_path : Optional[str] = None
+        ) -> Union[xr.Dataset, None]:
         """
-        Get the latest datasets from the HYCOM server (requires proper server aligment).
+        Return the xarray dataset for the HYCOM data or save to file path. 
+
+        Parameters:
+        --------
+        ref_time: Optional[datetime], default None (latest)
+            The forecast reftime for the dataset
+
+        file_path: str or None
+            The filepath to save the dataset 
 
         Returns:
         --------
-        xarray.Dataset
-            The latest dataset
-        
-        or
+        xr.Dataset or None
 
-        None
         """
+        # Handle time kwarg with the var_idx method to update the idx or grab the latest:
+        if ref_time:
+            self.get_varidx(time=ref_time, set_attrs=True) 
+        else:
+            self.get_forecast_df() if self.server_df is None else self.server_df
+    
+
+        # Check if 'complete' is True for each variable using the stored indices
+        all_complete = (
+            self.server_df.loc[("sst", self.sst_ds_idx), "complete"]
+            and self.server_df.loc[("ssu", self.ssu_ds_idx), "complete"]
+            and self.server_df.loc[("ssv", self.ssv_ds_idx), "complete"]
+        )
+
+        if not all_complete:
+            raise ValueError("Not all datasets selected are complete with data")
+
         dataset_list = []
 
-        # Check server alignment 
-        if self.ds_idx == 0:
-            if self.check_server_alignment():
-                for url in list(self.url_dict.values()):
-                        cat = TDSCatalog(url)
-                        latest_ds = cat.datasets[self.ds_idx]
+        for url, idx in self.url_idx.items():
+            # print(url, idx) # for debugging
+            cat = TDSCatalog(url)
+            dataset = cat.datasets[idx]
+            ds = self._decode_dataset_OPENDAP(dataset)
+            dataset_list.append(ds)
 
-                        ds = self._decode_dataset_OPENDAP(latest_ds)
-                        dataset_list.append(ds)
-                
-                ds = xr.merge(dataset_list)
-                return ds 
+        # for debugging:        
+        # for i, ds in enumerate(dataset_list):
+        #     print(f"Dataset {i}: dimensions = {ds.dims}")
+        #     print(f"Dataset {i}: time length = {len(ds.coords['time'])}")
+        #     print(f"Dataset {i}: time values = {ds.coords['time'].values}")
+
+        # Merge the dataset
+        merged_ds = xr.merge(dataset_list)
+
+        if file_path:
+            _save_filepath(merged_ds, file_path)
+            return None
+
+        if level:
+            if isinstance(level, int):
+                merged_ds = merged_ds.sel(level=level, method='nearest')
+
+            elif isinstance(level, tuple):
+                start = float(level[0])
+                end = float(level[1])
+
+                merged_ds = merged_ds.sel(level=slice(start, end))
             else:
-                return print("Server not aligned with the latest data, cannot return the completed datasets at this time")
-        else:
-            for url in list(self.url_dict.values()):
-                cat = TDSCatalog(url)
-                latest_ds = cat.datasets[self.ds_idx]
-
-                ds = self._decode_dataset_OPENDAP(latest_ds)
-                dataset_list.append(ds)
-        
-                ds = xr.merge(dataset_list)
-                return ds 
-            
+                raise ValueError(f"Level not successfully parsed, expected int but got type: {type(level).__name__} ")
 
 
-    
-    def download_dataset(
-        self, 
-        file_path :Optional[str] = "ESPC_hycom.nc", 
-        level : Optional[Union[int, Tuple[int, int]]] = 0)-> None: 
-        """
-        Download the latest hycom dataset. Optional kwargs are the file_path and the level
-        selection.
-
-        Parameters:
-        -----------
-        file_path: str
-            file path to save the dataset to
-
-        level: int, tuple(int, int)
-            select a single level or slice a range of levels. Default is 0 
-
-        """
-
-        ds = self.get_dataset()
-
-        if ds is not None: 
-            try: 
-                if isinstance(level, int):
-                    ds = ds.sel(level=level)
-                elif isinstance(level, tuple):
-                    ds = ds.sel(level=slice(level[0], level[1]))
-                else:
-                    raise TypeError("Wrong datatype passed to method: require int or tuple(int, int)")
-            except Exception as e:
-                    print(f"{e}: Error in selecting dataset level")
-            
-            # initialize a dask client based on the system CPU configuration (allows for dynamic workflow)
-            client = Client(n_workers=MAX_CONNECTIONS)
-            # Raise an exception if more than 9 workers are detected
-            if len(client.scheduler_info()["workers"]) > MAX_CONNECTIONS:
-                raise Exception(f"More than {MAX_CONNECTIONS} workers detected! Limit exceeded.")
-
-            if file_path.endswith(".nc"):
-                task = ds.to_netcdf(file_path, compute=False)
-            
-            elif file_path.endswith(".zarr"):
-                task = ds.to_zarr(file_path, compute=False)
-
-            progress(task)
-            return print(f"Dataset saved to {file_path}")
-        
-        return print("Datasets are not aligned at this time: This is normal behavior from the HYCOM server if the latest forecast is not aggregated")
+        return merged_ds
 
 
-    def get_varidx(self, time: Union[datetime, str], df: Optional[pd.DataFrame] = None):
+    def get_varidx(self, 
+                   time: datetime, 
+                   set_attrs: Optional[bool] = False
+                   ) -> Union[dict, None]:
         """
         Get the sub-index value for a given forecast_run time for each variable.
         
         Parameters:
-            df (pd.DataFrame): The multi-index DataFrame (variable, sub_index).
-            target_time (str): The forecast_run time to search for (e.g., "25-01-13 12Z").
+        -----------
+        time : datetime.datetime 
+                The traget time to search the dataserver.
+        
+        set_attrs: bool
+                The bool arg to set client attrs with the dataset idx, default=False
         
         Returns:
-            dict: A dictionary where keys are variables and values are sub-index values for the given time.
+        dict: 
+        A dictionary where keys are variables and values are sub-index values for the given time.
+
+        or 
+
+        None
         """
         
-        # Handle df kwarg 
+        # # Handle time kwarg 
+        if not isinstance(time, datetime):
+             raise TypeError(f"Invalid time dtype passed for: {time}")
 
-        df = self.get_forecast_df() if df is None else df = self.server_df
+        df = self.get_forecast_df() if self.server_df is None else self.server_df
 
         results = {}
 
@@ -339,11 +344,37 @@ class HycomClient:
             # Find rows matching the target_time in the forecast_run column
             matching_rows = sub_df[sub_df["forecast_run"] == time]
             if not matching_rows.empty:
-                # Get the sub_index (level 1 of the multi-index)
-                results[variable] = matching_rows.index.get_level_values(1).tolist()
+                    sub_index = matching_rows.index.get_level_values(1).item()
+                    results[variable] = sub_index
             else:
-                results[variable] = None  # No match found for this variable
+                sub_index = None
+                results[variable] = None
+
+            # Dynamically update the attribute if `set_attrs` is True
+            if set_attrs:
+                attr_name = f"{variable}_ds_idx"
+                setattr(self, attr_name, sub_index if not matching_rows.empty else None)
+
+       # Check if any value in `results` is None
+        if any(value is None for value in results.values()):
+            raise IndexError("Incomplete alignment of forecast data, time selected returned None")
+        
+        if set_attrs:
+            self.results_idx = results
+            self.url_idx = {
+                self.SST_URL: self.sst_ds_idx,
+                self.SSU_URL: self.ssu_ds_idx,
+                self.SSV_URL: self.ssv_ds_idx
+            }
+
+            return None
+        
         return results
+            
+
+
+
+            
 
 
         
