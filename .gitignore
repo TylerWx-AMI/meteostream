@@ -175,6 +175,8 @@ data/
 tmp/
 xyz/
 raf/
+grib/
+selected_grib/
 *.zarr
 *.nc
 *.grb
