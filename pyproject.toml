@@ -47,3 +47,13 @@ jupyter = [
     "ipykernel",
     "ipywidgets",
 ]
+
+datashader = [
+    "datashader",
+    "holoviews",
+    "hvplot",
+    "geoviews",
+    "panel",
+    "bokeh",
+    "colorcet",
+]
