@@ -19,6 +19,7 @@ dependencies = [
     "matplotlib",
     "cartopy",
     "siphon",
+    "earthaccess",
     "metpy",
     "netcdf4",
     "cfgrib",

@@ -4,7 +4,7 @@ import xarray as xr
 from siphon.catalog import TDSCatalog
 from datetime import datetime
 from typing import Union, Tuple, Optional
-from dask.diagnostics import ProgressBar 
+from dask.distributed import Client, progress, LocalCluster 
 
 #Define the URL Constant and Dataset index
 CRW_URL: str = "https://pae-paha.pacioos.hawaii.edu/thredds/satellite.xml"
@@ -202,15 +202,23 @@ def _save_filepath(ds: xr.Dataset, file_path:str) -> None:
     file_path : str
         The file path string to save to 
     """
-    with ProgressBar():
-        if file_path.endswith('.nc'):
-            ds.to_netcdf(file_path)
 
-        elif file_path.endswith('.h5'):
-            ds.to_netcdf(file_path, engine='h5netcdf')
+    if file_path.endswith('.nc'):
+        ds.to_netcdf(file_path, compute=False)
+        
 
-        elif file_path.endswith('.zarr'):
-            ds.to_zarr(file_path)
+    elif file_path.endswith('.h5'):
+        s.to_netcdf(file_path, engine='h5netcdf', compute=False)
+     
 
-        else:
-            raise TypeError("unsupported file type to save, dataset not saved to disk")
+    elif file_path.endswith('.zarr'):
+        task = ds.to_zarr(file_path, compute=False)
+        future = client.compute(task)
+        progress(future)
+        future.result()
+
+    else:
+        raise TypeError("unsupported file type to save, dataset not saved to disk")
+    
+    client.close()
+    

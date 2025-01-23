@@ -4,17 +4,17 @@ import siphon
 from siphon.catalog import TDSCatalog
 from typing import  Union, List, Optional, Tuple
 from datetime import datetime
+from dask.distributed import Client, progress, LocalCluster
 
-from .noaa_crw import _save_filepath
 
 # Define constants for simultaneous IP workers to the THREDDS servers. 
 # IP ban could relult if the below thresholds are exceeded.
-MAX_CONNECTIONS: int = 9
-MAX_NCSS_CONNECTIONS: int = 1  
+MAX_WORKERS = 9
+MAX_NCSS_CONNECTIONS = 1  
 
-SST_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/runs/catalog.xml"
-SSU_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalog.xml"
-SSV_URL: str = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/runs/catalog.xml"
+SST_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/runs/catalog.xml"
+SSU_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalog.xml"
+SSV_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/runs/catalog.xml"
 
 class HycomClient:
     
@@ -24,8 +24,17 @@ class HycomClient:
     """
     
 
-    def __init__(self):
+    def __init__(self, n_workers: int = 6, chunks: dict = {"time": 5, "lat": 500, "lon": 500}):
         """Initialize the client and retrieve forecast runs."""
+
+        if n_workers >= MAX_WORKERS:
+            raise ValueError(f"Number of workers exceeded {MAX_WORKERS}: {n_workers} was initialized")
+
+        # Initialize the dask backend
+        self.dask_cluster = LocalCluster(n_workers=n_workers)
+        self.client = Client(self.dask_cluster)
+        self.chunks = chunks
+
 
         self.sst_var_ID = 'water_temp'
         self.ssu_var_ID = 'water_u'
@@ -125,7 +134,7 @@ class HycomClient:
         ds = xr.open_dataset(
             dataset.access_urls['OPENDAP'], 
             decode_times=False,
-            chunks='auto')
+            chunks=self.chunks)
 
         time_offset = pd.to_timedelta(ds['time_offset'], unit='hours')
         time_offset = pd.TimedeltaIndex(time_offset)
@@ -233,7 +242,7 @@ class HycomClient:
 
     def get_dataset(
         self, 
-        level: Optional[Union[int, Tuple[int, int]]] = None,
+        depth: Optional[Union[int, Tuple[int, int]]] = None,
         ref_time: Optional[datetime] = None,
         file_path : Optional[str] = None
         ) -> Union[xr.Dataset, None]:
@@ -289,20 +298,20 @@ class HycomClient:
         merged_ds = xr.merge(dataset_list)
 
         if file_path:
-            _save_filepath(merged_ds, file_path)
+            self._save_dataset(merged_ds, file_path)
             return None
 
-        if level:
-            if isinstance(level, int):
-                merged_ds = merged_ds.sel(level=level, method='nearest')
+        if depth:
+            if isinstance(depth, int):
+                merged_ds = merged_ds.sel(depth=depth, method='nearest')
 
-            elif isinstance(level, tuple):
-                start = float(level[0])
-                end = float(level[1])
+            elif isinstance(depth, tuple):
+                start = float(depth[0])
+                end = float(depth[1])
 
-                merged_ds = merged_ds.sel(level=slice(start, end))
+                merged_ds = merged_ds.sel(depth=slice(start, end))
             else:
-                raise ValueError(f"Level not successfully parsed, expected int but got type: {type(level).__name__} ")
+                raise ValueError(f"Deptj not successfully parsed, expected int but got type: {type(level).__name__} ")
 
 
         return merged_ds
@@ -372,9 +381,33 @@ class HycomClient:
         return results
             
 
+    def _save_dataset(self, ds: xr.Dataset, file_path:str) -> None:
+        """
+        Internal function to save an xr.Dataset as a static file
 
+        Parameters:
+        file_path : str
+            The file path string to save to 
+        """
 
+        if file_path.endswith('.nc'):
+            ds.to_netcdf(file_path)
             
+        elif file_path.endswith('.h5'):
+            ds.to_netcdf(file_path, engine='h5netcdf')
+        
+        elif file_path.endswith('.zarr'):
+            task = ds.to_zarr(file_path, compute=False, consolidated=True, encoding={var: {"compressor": None} for var in ds.data_vars})
+            future = self.client.compute(task)
+            progress(future)
+            future.result()
+
+        else:
+            raise TypeError("unsupported file type to save, dataset not saved to disk")
+    
+
+    def write_xyz():
+        pass    
 
 
         
