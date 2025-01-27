@@ -1,4 +1,5 @@
 import pandas as pd
+import siphon.catalog
 import xarray as xr
 import siphon
 from siphon.catalog import TDSCatalog
@@ -71,7 +72,9 @@ class HycomClient:
 
         self.latest_forecast_download = None # Init the latest forecast dataset for client awareness
 
-    def _check_dataset_completeness(self, dataset:siphon.catalog.Dataset) -> bool:
+    def _check_dataset_completeness(self,
+                                    dataset:siphon.catalog.Dataset
+                                    ) -> Tuple[bool, int]:
         """
         Check if the `siphon.catalog.Dataset` (aggregated) is complete.
 
@@ -82,14 +85,16 @@ class HycomClient:
 
         Returns
         -------
-        bool
-            True if the dataset is complete, False otherwise.
+        Tuple
+            bool: True if the dataset is complete, False otherwise.
+            int: the length of the taus (65 is complete)
         """
 
         with xr.open_dataset(dataset.access_urls['OPENDAP'], decode_times=False) as ds:
-            if len(ds['time_offset']) != 65:
-                return False
-            return True
+            n_taus = len(ds['time_offset'])
+            if n_taus != 65:
+                return False, n_taus
+            return True, n_taus
 
     def _regrid_data(self, 
                      ds: Union[xr.Dataset, 
@@ -206,6 +211,7 @@ class HycomClient:
             timestamps = []
             completeness = []
             vars = []
+            n_taus = []
 
             for var, url in self.url_dict.items():
                 cat = TDSCatalog(url)
@@ -218,14 +224,19 @@ class HycomClient:
                     timestamps.append(time_str)
 
                     complete = self._check_dataset_completeness(ds)
-                    completeness.append(complete)
+                    completeness.append(complete[0])
+                    n_taus.append(complete[1])
 
             df = pd.DataFrame({
                 "variable":vars, 
                 "forecast_run":timestamps, 
-                "complete": completeness
+                "complete": completeness,
+                "n_taus":n_taus
                 }
             )
+
+                        # Add a column for percentage completion
+            df["completion_percentage"] = (df["n_taus"] / 65 * 100).apply(lambda x: f"{x:.1f}%")
 
             df['forecast_run'] = pd.to_datetime(df['forecast_run']).dt.normalize()
 
