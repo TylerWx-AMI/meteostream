@@ -236,7 +236,7 @@ class HycomClient:
             )
 
                         # Add a column for percentage completion
-            df["completion_percentage"] = (df["n_taus"] / 65 * 100).apply(lambda x: f"{x:.1f}%")
+            df["Perc. Complete"] = (df["n_taus"] / 65 * 100).apply(lambda x: f"{x:.1f}%")
 
             df['forecast_run'] = pd.to_datetime(df['forecast_run']).dt.normalize()
 
