@@ -1,6 +1,7 @@
 import pandas as pd
 import siphon.catalog
 import xarray as xr
+import numpy as np 
 import siphon
 from siphon.catalog import TDSCatalog
 from typing import  Union, List, Optional, Tuple
@@ -17,6 +18,10 @@ SST_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/runs/catalo
 SSU_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalog.xml"
 SSV_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/runs/catalog.xml"
 
+SST_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/catalog.xml"
+SSU_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/catalog.xml"
+SSV_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/catalog.xml"
+
 class HycomClient:
     
     """
@@ -25,7 +30,13 @@ class HycomClient:
     """
     
 
-    def __init__(self, n_workers: int = 6, chunks: dict = {"time": 5, "lat": 500, "lon": 500}):
+    def __init__(self, 
+                 sst_url: str = SST_URL,
+                 ssu_url: str = SSV_URL,
+                 ssv_url: str = SSV_URL,
+                 n_workers: int = 6, 
+                 chunks: dict = {"time": 5, "lat": 500, "lon": 500}):
+        
         """Initialize the client and retrieve forecast runs."""
 
         if n_workers >= MAX_WORKERS:
@@ -41,9 +52,11 @@ class HycomClient:
         self.ssu_var_ID = 'water_u'
         self.ssv_var_ID = 'water_v'
 
-        self.SST_URL = SST_URL
-        self.SSU_URL = SSU_URL
-        self.SSV_URL = SSV_URL
+
+
+        self.SST_URL = sst_url
+        self.SSU_URL = ssu_url
+        self.SSV_URL = ssv_url
 
         self.URL_LIST = [self.SST_URL, self.SSU_URL, self.SSV_URL]
 
@@ -310,6 +323,7 @@ class HycomClient:
 
         if file_path:
             self._save_dataset(merged_ds, file_path)
+            self.latest_forecast_download = merged_ds['ref_time'].values
             return None
 
         if depth:
@@ -416,9 +430,8 @@ class HycomClient:
         else:
             raise TypeError("unsupported file type to save, dataset not saved to disk")
     
-
-    def write_xyz():
-        pass    
+    
+    
 
 
         
