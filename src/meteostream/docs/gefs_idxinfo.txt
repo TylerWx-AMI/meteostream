@@ -1,0 +1,72 @@
+1:Sig. ht. of combined wind waves and swell:meters:Prob. > 0.6
+2:Sig. ht. of combined wind waves and swell:meters:Prob. > 1.0
+3:Sig. ht. of combined wind waves and swell:meters:Prob. > 2.0
+4:Sig. ht. of combined wind waves and swell:meters:Prob. > 3.0
+5:Sig. ht. of combined wind waves and swell:meters:Prob. > 4.0
+6:Sig. ht. of combined wind waves and swell:meters:Prob. > 5.5
+7:Sig. ht. of combined wind waves and swell:meters:Prob. > 7.0
+8:Sig. ht. of combined wind waves and swell:meters:Prob. > 9.0
+9:Primary wave mean period:seconds Prob. > 5.0
+10:Primary wave mean period:seconds:Prob. > 7.0
+11:Primary wave mean period:seconds:Prob. > 9.0
+12:Primary wave mean period:seconds:Prob. > 11.0
+13:Primary wave mean period:seconds:Prob. > 13.0
+14:Primary wave mean period:seconds:Prob. > 15.0
+15:Primary wave mean period:seconds:Prob. > 17.0
+16:Primary wave mean period:seconds:Prob. > 19.0
+17:Sig. ht. of wind waves:meters:Prob. > 0.6
+18:Sig. ht. of wind waves:meters:Prob. > 1.0
+19:Sig. ht. of wind waves:meters:Prob. > 2.0
+20:Sig. ht. of wind waves:meters:Prob. > 3.0
+21:Sig. ht. of wind waves:meters:Prob. > 4.0
+22:Sig. ht. of wind waves:meters:Prob. > 5.5
+23:Sig. ht. of wind waves:meters:Prob. > 7.0
+24:Sig. ht. of wind waves:meters:Prob. > 9.0
+25:Mean period of wind waves:seconds:Prob. > 5.0
+26:Mean period of wind waves:seconds:Prob. > 7.0
+27:Mean period of wind waves:seconds:Prob. > 9.0
+28:Mean period of wind waves:seconds:Prob. > 11.0
+29:Mean period of wind waves:seconds:Prob. > 13.0
+30:Mean period of wind waves:seconds:Prob. > 15.0
+31:Mean period of wind waves:seconds:Prob. > 17.0
+32:Mean period of wind waves:seconds:Prob. > 19.0
+33:Wind speed:meters per second:Prob. > 3.6
+34:Wind speed:meters per second:Prob. > 5.65
+35:Wind speed:meters per second:Prob. > 8.74
+36:Wind speed:meters per second:Prob. > 11.31
+37:Wind speed:meters per second:Prob. > 14.39
+38:Wind speed:meters per second:Prob. > 17.48
+39:Wind speed:meters per second:Prob. > 21.07
+40:Wind speed:meters per second:Prob. > 24.67
+41:Sig. ht. of total swell:meters:Prob. > 0.6
+42:Sig. ht. of total swell:meters:Prob. > 1.0
+43:Sig. ht. of total swell:meters:Prob. > 2.0
+44:Sig. ht. of total swell:meters:Prob. > 3.0
+45:Sig. ht. of total swell:meters:Prob. > 4.0
+46:Sig. ht. of total swell:meters:Prob. > 5.5
+47:Sig. ht. of total swell:meters:Prob. > 7.0
+48:Sig. ht. of total swell:meters:Prob. > 9.0
+49:Sig. ht. of total swell:meters:Prob. > 0.6
+50:Sig. ht. of total swell:meters:Prob. > 1.0
+51:Sig. ht. of total swell:meters:Prob. > 2.0
+52:Sig. ht. of total swell:meters:Prob. > 3.0
+53:Sig. ht. of total swell:meters:Prob. > 4.0
+54:Sig. ht. of total swell:meters:Prob. > 5.5
+55:Sig. ht. of total swell:meters:Prob. > 7.0
+56:Sig. ht. of total swell:meters:Prob. > 9.0
+57:Mean period of total swell:seconds:Prob. > 5.0
+58:Mean period of total swell:seconds:Prob. > 7.0
+59:Mean period of total swell:seconds:Prob. > 9.0
+60:Mean period of total swell:seconds:Prob. > 11.0
+61:Mean period of total swell:seconds:Prob. > 13.0
+62:Mean period of total swell:seconds:Prob. > 15.0
+63:Mean period of total swell:seconds:Prob. > 17.0
+64:Mean period of total swell:seconds:Prob. > 19.0
+65:Mean period of total swell:seconds:Prob. > 5.0
+66:Mean period of total swell:seconds:Prob. > 7.0
+67:Mean period of total swell:seconds:Prob. > 9.0
+68:Mean period of total swell:seconds:Prob. > 11.0
+69:Mean period of total swell:seconds:Prob. > 13.0
+70:Mean period of total swell:seconds:Prob. > 15.0
+71:Mean period of total swell:seconds:Prob. > 17.0
+72:Mean period of total swell:seconds:Prob. > 19.0
