@@ -5,6 +5,7 @@ download GEFS.wave probability data
 
 import requests
 import os
+import time
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
@@ -13,7 +14,12 @@ import xarray as xr
 import pandas as pd
 
 # Forecast hours
-FORECAST_HOURS = [f"{i:03d}" for i in range(0, 241, 6)]
+FORECAST_HOURS = [f"{i:03d}" for i in range(0, 243, 3)]
+
+# Set the HTTPS agent in case of 403 error code. 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
+}
 
 # Set datetime logic
 current_time = datetime.now(tz=timezone.utc)
@@ -84,6 +90,14 @@ class GefsClient():
         # Add an attribute to check if downloaded
         self.check_download = False
 
+        # Filter the init index for the var_name
+        self.filtered_df = self.metadata.loc[self.idx_list]
+        self.sel_columns = self.filtered_df[['var_name', 'grb_shortName']]
+
+        # Convert to a dictionary with the idx_ID as keys and (var_name, grb_shortName) as values
+        self.var_dict =self.sel_columns.to_dict('index')
+
+
     def download_gefs_prob_data(self):
         """
         Download the gribs to the grib_dir
@@ -98,36 +112,37 @@ class GefsClient():
                 with open(file_path, "wb") as file:
                     file.write(response.content)
                     print(f"Downloaded: {file_path}")
+                    time.sleep(1.5)
             else:
                 print(f"Failed to download {target} (status code: {response.status_code})")
         
         self.check_download = True
 
-    def extract_fields(self,
-            remove_input: bool = True,
-            open_dataset: bool = False
-            ) -> None | xr.Dataset:
+    # def extract_fields(self,
+    #         remove_input: bool = True,
+    #         open_dataset: bool = False
+    #         ) -> None | xr.Dataset:
 
 
-        # Loop through all GRIB files in the directory
-        for filepath in sorted(self.grib_dir):
-            if filepath.endswith(".grib2"):
-                print(f'Processing {filepath}...')
+    #     # Loop through all GRIB files in the directory
+    #     for filepath in sorted(self.grib_dir):
+    #         if filepath.endswith(".grib2"):
+    #             print(f'Processing {filepath}...')
 
-                with pygrib.open(str(filepath)) as grbs:
-                    for target_index in self.idx_list:
-                        # Extract the target parameter
-                        grb = grbs.message(target_index)
-                        param_name = grb.parameterName  # Optional: Extract parameter name for the file
+    #             with pygrib.open(str(filepath)) as grbs:
+    #                 for target_index in self.idx_list:
+    #                     # Extract the target parameter
+    #                     grb = grbs.message(target_index)
+    #                     param_name = grb.parameterName  # Optional: Extract parameter name for the file
 
-                        # Create a unique output filename for each parameter
-                        output_filename = f'selected_{target_index}_{filepath}'
-                        output_filepath = self.grib_dir / output_filename
+    #                     # Create a unique output filename for each parameter
+    #                     output_filename = f'selected_{target_index}_{filepath}'
+    #                     output_filepath = self.grib_dir / output_filename
 
-                        if remove_input:
-                            output_filepath.unlink()
+    #                     if remove_input:
+    #                         output_filepath.unlink()
                             
-                        print(f'Processed field {target_index}({param_name})')
+    #                     print(f'Processed field {target_index}({param_name})')
 
 
             # # Open the GRIB file
@@ -155,7 +170,7 @@ class GefsClient():
             # filepath.unlink()
             # print(f'Removed processed file: {filepath}')
     
-    def run_gefs(self,
+    def process_gefs(self,
                  remove_input: bool = True
                  ):
 
@@ -164,44 +179,110 @@ class GefsClient():
 
         # Loop through all GRIB files in the directory
         for filename in sorted(os.listdir(self.grib_dir)):
-            if filename.endswith('.grib2'):
-                input_filepath = os.path.join(self.grib_dir, filename)
-                print(f'Processing {input_filepath}...')
+            for tau in FORECAST_HOURS:
+                if filename.endswith(f"f{tau}.grib2"):
+                    input_filepath = os.path.join(self.grib_dir, filename)
+                    print(f'Processing {input_filepath}...')
 
-                try:
-                    with pygrib.open(input_filepath) as grbs:
-                        for target_index in self.idx_list:
-                            try:
-                                # Extract the target parameter
-                                grb = grbs.message(target_index)
-                                param_name = grb.parameterName  # Optional: Extract parameter name for the file
+                    try:
+                        with pygrib.open(input_filepath) as grbs:
+                            for target_index in self.idx_list:
+                                try:
+                                    # Extract the target parameter
+                                    grb = grbs.message(target_index)
+                                    print(f"Target idx: {target_index}, Name:{grb.shortName}")
 
-                                # Create a unique output filename for each parameter
-                                output_filename = f'selected_{target_index}_{filename}'
-                                output_filepath = os.path.join(self.grib_dir, output_filename)
+                                    # Find matching variable in self.var_dict
+                                    if target_index in self.var_dict:
+                                        values = self.var_dict[target_index]
+                                        var_name = values['var_name']
+                                        grb_name = values['grb_shortName']
 
-                                # Write the extracted parameter to a new GRIB file
-                                with open(output_filepath, 'wb') as output_file:
-                                    output_file.write(grb.tostring())
+                                        # Check if the extracted parameter matches the expected shortName
+                                        if grb.shortName == grb_name:
+                                            output_filename = (
+                                                f"GEFS_{var_name}_{filename.split('.')[0]}_idx{target_index}_f{tau}.grib2"
+                                            )
+                                            output_filepath = os.path.join(self.grib_dir, output_filename)
 
-                                print(f'Saved field {target_index} ({param_name}) to {output_filepath}')
+                                            # Write to a separate file for each matched parameter
+                                            with open(output_filepath, 'wb') as output_file:
+                                                output_file.write(grb.tostring())
 
-                                if remove_input:
-                                    output_filepath.unlink()
+                                            print(f"Saved to {output_filepath}")
 
-                            except Exception as e:
-                                print(f'Failed to process index {target_index} in {filename}: {e}')
+                                except Exception as e:
+                                    print(f"Error processing index {target_index} in file {filename}: {e}")
 
-                    # Remove the input file after processing all indices
-                    os.remove(input_filepath)
-                    print(f'Removed processed file: {input_filepath}')
-
-                except Exception as e:
-                    print(f'Failed to process file {input_filepath}: {e}')
+                    except Exception as e:
+                        print(f"Error opening file {filename}: {e}")
 
         print('All files processed successfully!')
 
+    def _merge_data(self) -> xr.Dataset:
+        """
+        Helper function to pass the grib files to xarray 
+        for concatenation and merging
 
+        Returns
+        -------
+        xr.Dataset
+            The xarray dataset
+        """
+
+
+        # Init the datasets
+        datasets = []
+
+        for idx, values in self.var_dict.items():
+                var_name, grb_shortName = values['var_name'], values['grb_shortName']
+
+                # Get a list of all GRIB2 files
+                grib_files = sorted(os.path.join(self.grib_dir, f) for f in os.listdir(self.grib_dir) if f.startswith(f"GEFS_{var_name}"))
+                for file in grib_files:    
+                    print(file )
+                    print(f"Processing {grb_shortName} in {file}")
+                    ds = xr.open_dataset(file, engine='cfgrib', 
+                                            backend_kwargs = {"indexpath": None})
+                    
+                    # Rename the varibale for xarray to 
+                    # merge and concat effectively
+                    ds = ds.rename({grb_shortName:var_name})
+                    # Drop unnecessary variables and rename dimensions
+                    print(f"Swapping vars: {grb_shortName} with {var_name}")
+                    ds = ds.drop_vars('step').rename({'time': 'ref_time'})
+                    datasets.append(ds)
+
+                    print(f"Removing {file}")
+                    os.remove(file)
+
+        # Open and concatenate all GRIB2 files
+        # Combine all datasets along the `valid_time` dimension
+        combined_ds = xr.concat(datasets, dim='valid_time')
+
+        return combined_ds 
+
+
+    def run_GEFS_pipeline(self,
+                          save_file: bool = True, 
+                          return_ds: bool = False
+                          ) -> None | xr.Dataset:
+
+        print("Starting GEFS download")
+        self.download_gefs_prob_data()
+
+        print("Preprocessing files")
+        self.process_gefs()
+
+        print("Merging results")
+        ds = self._merge_data()
+
+        if save_file:
+            ds.to_netcdf(self.output_filepath)
+
+        if return_ds:
+            return ds 
+        
 
     def gefs_metadata(self)->pd.DataFrame:
         """
@@ -212,11 +293,8 @@ class GefsClient():
         current_dir = Path(__file__).parent  # Directory of the current script
         metadata_path = current_dir / "docs" / "gefs_idxinfo.txt"
 
-        df = pd.read_csv(metadata_path,  delimiter=':', header=None)
-
-        # Assign column names based on the structure of your data
-        df.columns = ["Index_ID", "Parameter", "Unit", "Threshold"]
+        df = pd.read_csv(metadata_path,  delimiter=':')
         
-        df.set_index("Index_ID", inplace=True)
+        df.set_index("idx_ID", inplace=True)
 
         return df
