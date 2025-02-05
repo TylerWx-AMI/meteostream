@@ -8,6 +8,7 @@ import os
 import time
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 import numpy as np
 import pygrib
@@ -59,7 +60,7 @@ class GefsClient():
                  grib_dir:str, 
                  idx_list: list = [5, 6, 7, 8, 38, 39, 40],
                  forecast_hours: tuple =  (0, 243, 3),
-                 output_filepath: str ="gefs_main.nc"):
+                 ):
         """
         Initialize the object
 
@@ -102,9 +103,6 @@ class GefsClient():
         # Get the grib dir
         self.grib_dir = Path(grib_dir)
         
-        # Set the output filepath
-        self.output_filepath = output_filepath
-
         # Create the metadata df
         self.metadata = self.gefs_metadata()
         # Filter the init index for the var_name
@@ -122,6 +120,33 @@ class GefsClient():
 
         # Add an attribute to check if downloaded
         self.check_download = False
+
+    @monitor_resources    
+    def run_GEFS_pipeline(self,
+                          save_file: Optional[str] = None, 
+                          return_ds: bool = False
+                          ) -> None | xr.Dataset:
+        """
+        Method to run the main/whole GEFS pipeline
+        using class methods 
+
+
+        """
+        print("Starting GEFS download")
+        self.download_gefs_prob_data()
+
+        print("Preprocessing files..this might take some time")
+        ds = self.process_gefs()
+
+        if save_file:
+            if save_file.endswith(".nc"):
+                ds.to_netcdf(save_file)
+            else:
+                ds.to_zarr(save_file, mode='w')
+
+        if return_ds:
+            return ds 
+        
 
     def download_gefs_prob_data(self):
         """
@@ -229,28 +254,6 @@ class GefsClient():
 
         print('All files processed successfully!')
         return final_dataset
-
-    @monitor_resources    
-    def run_GEFS_pipeline(self,
-                          save_file: bool = True, 
-                          return_ds: bool = False
-                          ) -> None | xr.Dataset:
-
-        print("Starting GEFS download")
-        self.download_gefs_prob_data()
-
-        print("Preprocessing files..this might take some time")
-        ds = self.process_gefs()
-
-        if save_file:
-            if save_file.endswith(".nc"):
-                ds.to_netcdf(self.output_filepath)
-            else:
-                ds.to_zarr(self.output_filepath, mode='w')
-
-        if return_ds:
-            return ds 
-        
 
     def gefs_metadata(self)->pd.DataFrame:
         """
