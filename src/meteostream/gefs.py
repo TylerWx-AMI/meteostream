@@ -224,8 +224,8 @@ class GefsClient():
         final_dataset.attrs['Description'] = "GEFS Probability Data from NOAA NOMADS HTTPS"
         final_dataset.attrs['grb_Param_Index'] = [idx for idx in self.idx_list]
         for idx in self.idx_list:
-            param = self.metadata.loc[idx, 'parameter']
-            final_dataset.attrs[f'Parameter_{idx}'] = param
+            param, threshold = self.metadata.loc[idx, ['parameter', 'threshold']]
+            final_dataset.attrs[f'Parameter_{idx}'] = (param, threshold)
 
         print('All files processed successfully!')
         return final_dataset
