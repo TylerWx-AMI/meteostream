@@ -58,7 +58,7 @@ class GefsClient():
     """ 
     def __init__(self, 
                  grib_dir:str, 
-                 idx_list: list = [5, 6, 7, 8, 38, 39, 40],
+                 idx_list: list = [7, 8, 9, 38, 40],
                  forecast_hours: tuple =  (0, 243, 3),
                  ):
         """
