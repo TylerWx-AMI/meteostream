@@ -220,44 +220,15 @@ class GefsClient():
         del final_dataset.attrs['grb_shortName']
         del final_dataset.attrs['units']
         del final_dataset.attrs['limit']
-
-        final_dataset.attrs['grb_Param_Index'] = [idx for idx in self.idx_list]
+        
         final_dataset.attrs['Description'] = "GEFS Probability Data from NOAA NOMADS HTTPS"
-
+        final_dataset.attrs['grb_Param_Index'] = [idx for idx in self.idx_list]
+        for idx in self.idx_list:
+            param = self.metadata.loc[idx, 'parameter']
+            final_dataset.attrs[f'Parameter_{idx}'] = param
 
         print('All files processed successfully!')
         return final_dataset
-
-    def _merge_data(self) -> xr.Dataset:
-        """
-        Helper function to pass the grib files to xarray 
-        for concatenation and merging
-
-        Returns
-        -------
-        xr.Dataset
-            The xarray dataset
-        """
-
-
-        # Init the datasets
-        datasets = []
-
-        # Get a list of all nc files in the GRIB dir
-        data_files = sorted(os.path.join(self.grib_dir, f) for f in os.listdir(self.grib_dir) if f.endswith(".nc"))
-
-        # Open all GRIB2 files for this variable and create a dataset
-        with xr.open_mfdataset(
-            data_files,
-            combine='nested',
-            concat_dim='valid_time',
-            chunks='auto'
-        ) as ds:
-            # Append the dataset to the list
-            datasets.append(ds)
-
-        # Concatenate all datasets along the `valid_time` dimension
-        return xr.concat(datasets, dim='valid_time')
 
     @monitor_resources    
     def run_GEFS_pipeline(self,
@@ -268,11 +239,8 @@ class GefsClient():
         print("Starting GEFS download")
         self.download_gefs_prob_data()
 
-        print("Preprocessing files")
-        self.process_gefs()
-
-        print("Merging results")
-        ds = self._merge_data()
+        print("Preprocessing files..this might take some time")
+        ds = self.process_gefs()
 
         if save_file:
             if save_file.endswith(".nc"):
