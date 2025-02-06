@@ -208,7 +208,7 @@ def _save_filepath(ds: xr.Dataset, file_path:str) -> None:
         
 
     elif file_path.endswith('.h5'):
-        s.to_netcdf(file_path, engine='h5netcdf', compute=False)
+        ds.to_netcdf(file_path, engine='h5netcdf', compute=False)
      
 
     elif file_path.endswith('.zarr'):

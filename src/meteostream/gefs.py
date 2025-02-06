@@ -142,13 +142,14 @@ class GefsClient():
         # Check for server status
         for target in self.target_urls:
             response = requests.get(target)
+            time.sleep(1)
             if response.status_code == 200:
                 file_name = target.split("/")[-1]
                 file_path = self.grib_dir / file_name
                 with open(file_path, "wb") as file:
                     file.write(response.content)
                     print(f"Downloaded: {file_path}")
-                    time.sleep(0.5)
+                    time.sleep(1.5)
             else:
                 print(f"Failed to download {target} (status code: {response.status_code})")
         
