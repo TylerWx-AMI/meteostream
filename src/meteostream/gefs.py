@@ -2,7 +2,7 @@
 Module containing methods to access and 
 download GEFS.wave probability data 
 """
-
+# Standard Imports
 import requests
 import os
 import time
@@ -10,13 +10,24 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+# Third-Party Imports
 import numpy as np
 import pygrib
 import xarray as xr
 import pandas as pd
 import dask.array 
 
+# Relative imports
 from .function_tools import monitor_resources
+
+# Set constants
+# NOAA NOMDAS SERVER FORECAST (TAU) SCHEMA
+SEGMENT_ONE = range(0, 243, 3) 
+SEGMENT_TWO = range(246, 390, 6)
+# A complete list of f{taus} for a given run
+SERVER_TAU_LIST = list(SEGMENT_ONE) + list(SEGMENT_TWO) 
+ # Paramter IDs
+PARAM_INDX = list(range(1, 73, 1))
 
 # Set datetime logic
 current_time = datetime.now(tz=timezone.utc)
@@ -42,28 +53,18 @@ elif run_time == "12" and current_hour < 1:
 else:
     run_date = current_time.strftime("%Y%m%d")
 
-# NOAA NOMDAS SERVER FORECAST (TAU) SCHEMA
-SEGMENT_ONE = range(0, 243, 3) 
-SEGMENT_TWO = range(246, 390, 6)
-SERVER_TAU_LIST = list(SEGMENT_ONE) + list(SEGMENT_TWO)
-
-PARAM_INDX = list(range(1, 73, 1))
-
 class GefsClient():
-    """
-    Python Class to interact with the GEFS probabIlity data via HTTPS
-
-    https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod/
-    
-    """ 
     def __init__(self, 
                  grib_dir:str, 
                  idx_list: list = [7, 8, 9, 38, 40],
                  forecast_hours: tuple =  (0, 243, 3),
                  ):
+        
         """
-        Initialize the object
+        Python Class to interact with the GEFS probability data via HTTPS
 
+        https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod/
+        
         Params:
         -------
         grib_dir: str
@@ -71,13 +72,15 @@ class GefsClient():
             (recommend an empty dir. for processing)
         
         idx_list: list[int]
-            list of index values to parse the .grib
+            list of index values to decode the .grib
             paramters
         
-        forecast_hours: tuple
-
-        output_filepath: str
-            path to store resulting nc file
+        forecast_hours: tuple(start, end, step)
+            The forecast range to select from the
+            latest run. 
+            Note: 3 hour intervals up to the 240th tau
+            then goes to every 6 hours to 384th tau
+            (raises error if 243rd tau is set: DNE)
         """
 
         # Handle kwargs
@@ -121,10 +124,10 @@ class GefsClient():
         # Add an attribute to check if downloaded
         self.check_download = False
 
-    @monitor_resources    
     def run_GEFS_pipeline(self,
                           save_file: Optional[str] = None, 
-                          return_ds: bool = False
+                          return_ds: bool = False,
+                          clear_gribs: bool = False,
                           ) -> None | xr.Dataset:
         """
         Method to run the main/whole GEFS pipeline
@@ -132,8 +135,9 @@ class GefsClient():
 
 
         """
-        print("Starting GEFS download")
-        self.download_gefs_prob_data()
+        if not self.check_download:
+            print("Starting GEFS download")
+            self.download_gefs_prob_data()
 
         print("Preprocessing files..this might take some time")
         ds = self.process_gefs()
@@ -143,6 +147,12 @@ class GefsClient():
                 ds.to_netcdf(save_file)
             else:
                 ds.to_zarr(save_file, mode='w')
+
+        if clear_gribs:
+            print("Removing dowloaded gribs")
+            for file in Path(self.grib_dir).glob("gefs.wave*.grib2"):
+                file.unlink()  # Efficient way to remove files
+                self.check_download = False # Update download bool (files DNE)
 
         if return_ds:
             return ds 

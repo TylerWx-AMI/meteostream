@@ -1,6 +1,5 @@
 from meteostream import GefsClient
 
-client = GefsClient(grib_dir="/home/tylerradebaugh/data/grib", 
-                    output_filepath="/home/tylerradebaugh/data/netcdf/GEFS_prob.nc")
+client = GefsClient(grib_dir="/home/tylerradebaugh/data/grib")
 
-client.run_GEFS_pipeline()
+client.run_GEFS_pipeline(save_file="/home/tylerradebaugh/data/netcdf/GEFS_prob.nc")
