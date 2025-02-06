@@ -17,8 +17,6 @@ import xarray as xr
 import pandas as pd
 import dask.array 
 
-# Relative imports
-from .function_tools import monitor_resources
 
 # Set constants
 # NOAA NOMDAS SERVER FORECAST (TAU) SCHEMA
