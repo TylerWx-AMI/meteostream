@@ -1,5 +1,7 @@
 """
-Example python script to run the GEFS Pipeline
+Example python script to run the GEFS Pipeline from NOAA
+NOMADAS HTTPS requests at 
+https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod/
 """
 # Import the package
 from meteostream import GefsClient
