@@ -17,6 +17,8 @@ import xarray as xr
 import pandas as pd
 import dask.array 
 
+# Relative Imports
+from .constants import run_date, run_time
 
 # Set constants
 # NOAA NOMDAS SERVER FORECAST (TAU) SCHEMA
@@ -26,30 +28,6 @@ SEGMENT_TWO = range(246, 390, 6)
 SERVER_TAU_LIST = list(SEGMENT_ONE) + list(SEGMENT_TWO) 
  # Paramter IDs
 PARAM_INDX = list(range(1, 73, 1))
-
-# Set datetime logic
-current_time = datetime.now(tz=timezone.utc)
-current_hour = current_time.hour
-
-# Determine the most recent run time based on the current hour
-if 1 <= current_hour < 7:
-    run_time = "18"
-elif 7 <= current_hour < 9:
-    run_time = "00"
-elif 10 <= current_hour < 16:
-    run_time = "06"
-else:
-    run_time = "12"
-
-# Determine the date for the selected run
-if run_time == "18":
-    run_date = (current_time - timedelta(days=1)).strftime("%Y%m%d")
-
-elif run_time == "12" and current_hour < 1:
-    run_date = (current_time - timedelta(days=1)).strftime("%Y%m%d")
-
-else:
-    run_date = current_time.strftime("%Y%m%d")
 
 class GefsClient():
     def __init__(self, 
