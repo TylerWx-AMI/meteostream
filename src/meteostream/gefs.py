@@ -270,7 +270,7 @@ class GefsClient():
 
         # Dynamically resolve the path to the metadata file
         current_dir = Path(__file__).parent  # Directory of the current script
-        metadata_path = current_dir / "docs" / "gefs_idxinfo.txt"
+        metadata_path = current_dir / "static" / "gefs_idxinfo.txt"
 
         df = pd.read_csv(metadata_path,  delimiter=':')
         
