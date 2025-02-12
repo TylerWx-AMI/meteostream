@@ -1,0 +1,13 @@
+idx_ID:description:units
+1:Significant height of combined wind waves and swell:meters
+2:Primary wave mean period:seconds 
+3:Primary wave direction:Degrees
+4:Significant height of wind waves:meters 
+5:Mean period of wind waves:seconds 
+6:Direction of wind waves:Degrees 
+7:Wind speed:m s**-1 
+8:Wind direction:Degrees
+9:Significant height of total swell:meters 
+10:Significant height of total swell:meters
+11:Mean period of total swell:seconds
+12:Mean period of total swell:seconds

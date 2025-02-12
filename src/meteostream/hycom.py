@@ -19,8 +19,7 @@ SSU_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/runs/catalo
 SSV_URL = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/runs/catalog.xml"
 
 SST_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_t3z/catalog.xml"
-SSU_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_u3z/catalog.xml"
-SSV_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_v3z/catalog.xml"
+SSU_SSV_BEST = "https://tds.hycom.org/thredds/catalog/FMRC_ESPC-D-V02_uv3z/catalog.xml"
 
 class HycomClient:
     

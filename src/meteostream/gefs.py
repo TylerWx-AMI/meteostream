@@ -4,10 +4,10 @@ download GEFS.wave probability data
 """
 # Standard Imports
 import requests
+from requests import HTTPError
 import os
 import time
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 # Third-Party Imports
@@ -31,7 +31,7 @@ PARAM_INDX = list(range(1, 73, 1))
 
 class GefsClient():
     def __init__(self, 
-                 grib_dir:str, 
+                 grib_dir:str = Path("/tmp/grib"), 
                  idx_list: list = [7, 8, 9, 38, 40],
                  forecast_hours: tuple =  (0, 243, 3),
                  ):
@@ -82,8 +82,11 @@ class GefsClient():
         # Get the grib dir
         self.grib_dir = Path(grib_dir)
         
-        # Create the metadata df
-        self.metadata = self.gefs_metadata()
+        # Create the metadata dfs
+        self.prob_metadata = self.gefs_metadata_prob()
+
+
+
         # Filter the init index for the var_name
         self.filtered_df = self.metadata.loc[self.idx_list]
         self.sel_columns = self.filtered_df[['var_name', 'grb_shortName']]
@@ -92,10 +95,12 @@ class GefsClient():
 
         # Define URL paths based on current datetime logic
         base_url = f"https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod/gefs.{run_date}/{run_time}/wave/gridded/"
-        file_urls = [f"gefs.wave.t{run_time}z.prob.global.0p25.f{hour}.grib2" for hour in self.forecast_hours]
+        prob_file_urls = [f"gefs.wave.t{run_time}z.prob.global.0p25.f{hour}.grib2" for hour in self.forecast_hours]
+        mean_file_urls = [f"gefs.wave.t{run_time}z.mean.global.0p25.f{hour}.grib2" for hour in self.forecast_hours]
 
         # Combine base + file_urls 
-        self.target_urls = [f"{base_url}{url}" for url in file_urls]
+        self.prob_target_urls = [f"{base_url}{url}" for url in prob_file_urls]
+        self.mean_target_urls = [f"{base_url}{url}" for url in mean_file_urls]
 
         # Add an attribute to check if downloaded
         self.check_download = False
@@ -103,7 +108,7 @@ class GefsClient():
     def run_GEFS_pipeline(self,
                           save_file: Optional[str] = None, 
                           return_ds: bool = False,
-                          clear_gribs: bool = False,
+                          clear_gribs: bool = True,
                           ) -> None | xr.Dataset:
         """
         Method to run the main/whole GEFS pipeline
@@ -134,13 +139,13 @@ class GefsClient():
             return ds 
         
 
-    def download_gefs_prob_data(self):
+    def download_gefs_data(self):
         """
         Download the gribs to the grib_dir
         """
     
-        # Check for server status
-        for target in self.target_urls:
+        # Get probability data
+        for target in self.prob_target_urls:
             response = requests.get(target)
             time.sleep(1)
             if response.status_code == 200:
@@ -152,6 +157,24 @@ class GefsClient():
                     time.sleep(1.5)
             else:
                 print(f"Failed to download {target} (status code: {response.status_code})")
+                raise HTTPError(response)
+
+
+        # Get mean data
+        for target in self.mean_target_urls:
+            response = requests.get(target)
+            time.sleep(1)
+            if response.status_code == 200:
+                file_name = target.split("/")[-1]
+                file_path = self.grib_dir / file_name
+                with open(file_path, "wb") as file:
+                    file.write(response.content)
+                    print(f"Downloaded: {file_path}")
+                    time.sleep(1.5)
+            else:
+                print(f"Failed to download {target} (status code: {response.status_code})")
+                raise HTTPError(response)
+
         
         self.check_download = True
 
@@ -242,14 +265,29 @@ class GefsClient():
         print('All files processed successfully!')
         return final_dataset
 
-    def gefs_metadata(self)->pd.DataFrame:
+    def gefs_metadata_prob(self)->pd.DataFrame:
         """
         Return the pandas dataframe containing the GEFS.prob parameters 
         """
 
         # Dynamically resolve the path to the metadata file
         current_dir = Path(__file__).parent  # Directory of the current script
-        metadata_path = current_dir / "static" / "gefs_idxinfo.txt"
+        metadata_path = current_dir / "static" / "gefs_prob_params.txt"
+
+        df = pd.read_csv(metadata_path,  delimiter=':')
+        
+        df.set_index("idx_ID", inplace=True)
+
+        return df
+    
+    def gefs_metadata_mean(self)->pd.DataFrame:
+        """
+        Return the pandas dataframe containing the GEFS.prob parameters 
+        """
+
+        # Dynamically resolve the path to the metadata file
+        current_dir = Path(__file__).parent  # Directory of the current script
+        metadata_path = current_dir / "static" / "gefs_mean_params.txt"
 
         df = pd.read_csv(metadata_path,  delimiter=':')
         
