@@ -58,7 +58,7 @@ idx_ID:grb_shortName:parameter:unit:threshold:var_name
 57:mpts:Mean period of total swell:seconds:Prob. > 5.0: avgswper5
 58:mpts:Mean period of total swell:seconds:Prob. > 7.0: avgswper7
 59:mpts:Mean period of total swell:seconds:Prob. > 9.0: avgswper9
-60:mpts:Mean period of total swell:seconds:Prob. > 11.0:avgswper11 
+60:mpts:Mean period of total swell:seconds:Prob. > 11.0:avgswper11
 61:mpts:Mean period of total swell:seconds:Prob. > 13.0:avgswper13
 62:mpts:Mean period of total swell:seconds:Prob. > 15.0:avgswper15
 63:mpts:Mean period of total swell:seconds:Prob. > 17.0:avgswper17

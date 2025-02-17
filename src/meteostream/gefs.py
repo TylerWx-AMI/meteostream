@@ -27,12 +27,14 @@ SEGMENT_TWO = range(246, 390, 6)
 # A complete list of f{taus} for a given run
 SERVER_TAU_LIST = list(SEGMENT_ONE) + list(SEGMENT_TWO) 
  # Paramter IDs
-PARAM_INDX = list(range(1, 73, 1))
+PROB_PARAM_INDX = list(range(1, 73, 1))
+MEAN_PARAM_INDX = list(range(1, 13, 1))
 
 class GefsClient():
     def __init__(self, 
                  grib_dir:str = Path("/tmp/grib"), 
-                 idx_list: list = [7, 8, 9, 38, 40],
+                 prob_idx_list: list = [7, 8, 9, 38, 40],
+                 mean_idx_list: list = [1, 7, 8],
                  forecast_hours: tuple =  (0, 243, 3),
                  ):
         
@@ -61,12 +63,17 @@ class GefsClient():
 
         # Handle kwargs
         # Use a set to efficiently check if any index is not valid
-        invalid_indices = [i for i in idx_list if i not in PARAM_INDX]
+        invalid_indices = [i for i in prob_idx_list if i not in PROB_PARAM_INDX]
 
         if invalid_indices:
-            raise IndexError(f"Invalid Parameter Index value(s) passed: {invalid_indices}. Expecting any in {PARAM_INDX}")
+            raise IndexError(f"Invalid Prob. Parameter Index value(s) passed: {invalid_indices}. Expecting any in {PROB_PARAM_INDX}")
         
-        self.idx_list = idx_list # Init the idx list
+        invalid_indices = [i for i in mean_idx_list if i not in MEAN_PARAM_INDX]
+        if invalid_indices:
+            raise IndexError(f"Invalid Mean Parameter Index value(s) passed: {invalid_indices}. Expecting any in {MEAN_PARAM_INDX}")
+        
+        self.prob_idx_list = prob_idx_list # Init the idx list
+        self.mean_idx_list = mean_idx_list
 
         start, end, step = forecast_hours  # Unpack the tuple
         self.forecast_hours_list = range(start, end, step)
@@ -84,14 +91,20 @@ class GefsClient():
         
         # Create the metadata dfs
         self.prob_metadata = self.gefs_metadata_prob()
-
-
+        self.mean_metadata = self.gefs_metadata_mean()
 
         # Filter the init index for the var_name
-        self.filtered_df = self.metadata.loc[self.idx_list]
-        self.sel_columns = self.filtered_df[['var_name', 'grb_shortName']]
+        self.prob_filtered_df = self.prob_metadata.loc[self.prob_idx_list]
+        self.mean_filtered_df = self.mean_metadata.loc[self.mean_idx_list]
+
+
+        self.prob_sel_columns = self.prob_filtered_df[['var_name', 'grb_shortName']]
         # Convert to a dictionary with the idx_ID as keys and (var_name, grb_shortName) as values
-        self.var_dict =self.sel_columns.to_dict('index')
+        self.prob_var_dict =self.prob_sel_columns.to_dict('index')
+
+        self.mean_sel_columns = self.mean_filtered_df[['var_name', 'grb_shortName']]
+        # Convert to a dictionary with the idx_ID as keys and (var_name, grb_shortName) as values
+        self.mean_var_dict =self.mean_sel_columns.to_dict('index')
 
         # Define URL paths based on current datetime logic
         base_url = f"https://nomads.ncep.noaa.gov/pub/data/nccf/com/gens/prod/gefs.{run_date}/{run_time}/wave/gridded/"
@@ -118,7 +131,7 @@ class GefsClient():
         """
         if not self.check_download:
             print("Starting GEFS download")
-            self.download_gefs_prob_data()
+            self.download_gefs_data()
 
         print("Preprocessing files..this might take some time")
         ds = self.process_gefs()
@@ -187,62 +200,119 @@ class GefsClient():
         datasets = []
 
         if not self.check_download:
-            self.download_gefs_prob_data()
+            self.download_gefs_data()
 
         # Loop through all GRIB files in the directory
         for filename in sorted(os.listdir(self.grib_dir)):
+            # Locate the gefs.wave files
             if filename.startswith("gefs.wave"):
-                data_arrays = []
                 tau = filename[-9:-6]  # Slice for the tau string       
-                input_filepath = os.path.join(self.grib_dir, filename)
-                print(f'Processing {input_filepath}...')
-                
-                # Use pygrib to extract data
-                with pygrib.open(input_filepath) as grbs:
-                    for target_index in self.idx_list:
-                        grb = grbs.message(target_index)
-                        print(f"Target idx: {target_index}, Name: {grb.shortName}, Tau:{tau}")
+                data_arrays = []
+                #probability data
+                if "prob" in filename:
+                    input_filepath = os.path.join(self.grib_dir, filename)
+                    print(f'Processing {input_filepath}...')
+            
+                    # Use pygrib to extract data
+                    with pygrib.open(input_filepath) as grbs:
+                        for target_index in self.prob_idx_list:
+                            grb = grbs.message(target_index)
+                            print(f"Target idx: {target_index}, Name: {grb.shortName}, Tau:{tau}")
 
-                        values = self.var_dict[target_index] # Extract the values from the dict
-                        var_name = values['var_name'] # Get the var string
-                        grb_name = values['grb_shortName'] # Get the grb_var string 
-                        data = grb.values # get the np.array data
-                        data_3d = np.expand_dims(data, axis=0) # Need to expand it to get the proper shape
-                        lats, lons = grb.latlons() # Get the lat,lon data
+                            values = self.prob_var_dict[target_index] # Extract the values from the dict
+                            var_name = values['var_name'] # Get the var string
+                            grb_name = values['grb_shortName'] # Get the grb_var string 
+                            data = grb.values # get the np.array data
+                            data_3d = np.expand_dims(data, axis=0) # Need to expand it to get the proper shape
+                            lats, lons = grb.latlons() # Get the lat,lon data
 
-                        # Extract valid_time and ref_time for this iteration
-                        valid_time = grb.validDate
-                        ref_time = grb.analDate
+                            # Extract valid_time and ref_time for this iteration
+                            valid_time = grb.validDate
+                            ref_time = grb.analDate
 
-                        df = self.metadata.loc[target_index] # Metadata df
+                            df = self.prob_metadata.loc[target_index] # Metadata df
 
-                        # Use dask.array for the data
-                        dask_data = dask.array.from_array(
-                            data_3d,
-                            chunks='auto'
-                        )
-
-                        if grb.shortName == grb_name:
-                            print(f"Creating DataArray for {var_name}")
-                            da = xr.DataArray(
-                                dask_data,  
-                                coords={
-                                    "latitude": (["latitude"], lats[:, 0]),
-                                    "longitude": (["longitude"], lons[0, :]),
-                                    "valid_time": [valid_time],  # Wrap valid_time to define it as a dimension
-                                    "ref_time": ref_time,
-                                },
-                                dims=["valid_time", "latitude", "longitude"],
-                                name=var_name,
-                                attrs={
-                                    "grb_shortName": grb_name,
-                                    "grb_Param_Index": target_index,
-                                    "Description": df['parameter'],
-                                    "units": df['unit'],
-                                    "limit": df['threshold'],
-                                }
+                            # Use dask.array for the data
+                            dask_data = dask.array.from_array(
+                                data_3d,
+                                chunks='auto'
                             )
-                            data_arrays.append(da)
+
+                            if grb.shortName == grb_name:
+                                print(f"Creating DataArray for {var_name}")
+                                da = xr.DataArray(
+                                    dask_data,  
+                                    coords={
+                                        "latitude": (["latitude"], lats[:, 0]),
+                                        "longitude": (["longitude"], lons[0, :]),
+                                        "valid_time": [valid_time],  # Wrap valid_time to define it as a dimension
+                                        "ref_time": ref_time,
+                                    },
+                                    dims=["valid_time", "latitude", "longitude"],
+                                    name=var_name,
+                                    attrs={
+                                        "grb_shortName": grb_name,
+                                        "grb_Param_Index": target_index,
+                                        "Description": df['parameter'],
+                                        "units": df['unit'],
+                                        "limit": df['threshold'],
+                                    }
+                                )
+                                data_arrays.append(da)
+
+                if "mean" in filename:
+                    input_filepath = os.path.join(self.grib_dir, filename)
+                    print(f'Processing {input_filepath}...')
+                    with pygrib.open(input_filepath) as grbs:
+                        for target_index in self.mean_idx_list:
+                            grb = grbs.message(target_index)
+                            print(f"Target idx: {target_index}, Name: {grb.shortName}, Tau:{tau}")
+
+                            values = self.mean_var_dict[target_index] # Extract the values from the dict
+                            var_name = values['var_name'] # Get the var string
+                            grb_name = values['grb_shortName'] # Get the grb_var string 
+                            data = grb.values # get the np.array data
+                            data_3d = np.expand_dims(data, axis=0) # Need to expand it to get the proper shape
+                            lats, lons = grb.latlons() # Get the lat,lon data
+
+                            # Extract valid_time and ref_time for this iteration
+                            valid_time = grb.validDate
+                            ref_time = grb.analDate
+
+                            df = self.mean_metadata.loc[target_index] # Metadata df
+
+                            # Use dask.array for the data
+                            dask_data = dask.array.from_array(
+                                data_3d,
+                                chunks='auto'
+                            )
+
+                            if grb.shortName == grb_name:
+                                print(f"Creating DataArray for {var_name}")
+                                da = xr.DataArray(
+                                    dask_data,  
+                                    coords={
+                                        "latitude": (["latitude"], lats[:, 0]),
+                                        "longitude": (["longitude"], lons[0, :]),
+                                        "valid_time": [valid_time],  # Wrap valid_time to define it as a dimension
+                                        "ref_time": ref_time,
+                                    },
+                                    dims=["valid_time", "latitude", "longitude"],
+                                    name=var_name,
+                                    attrs={
+                                        "grb_shortName": grb_name,
+                                        "grb_Param_Index": target_index,
+                                        "Description": df['parameter'],
+                                        "units": df['unit'],
+                                    }
+                                )
+                                data_arrays.append(da)
+
+
+
+                    
+
+
                 
                 # Merge the DataArrays into a Dataset for this file
                 merged_da = xr.merge(data_arrays)
@@ -254,12 +324,11 @@ class GefsClient():
         # Edit some metadata 
         del final_dataset.attrs['grb_shortName']
         del final_dataset.attrs['units']
-        del final_dataset.attrs['limit']
         
         final_dataset.attrs['Description'] = "GEFS Probability Data from NOAA NOMADS HTTPS"
-        final_dataset.attrs['grb_Param_Index'] = [idx for idx in self.idx_list]
-        for idx in self.idx_list:
-            param, threshold = self.metadata.loc[idx, ['parameter', 'threshold']]
+        final_dataset.attrs['grb_Param_Index'] = [idx for idx in self.prob_idx_list]
+        for idx in self.prob_idx_list:
+            param, threshold = self.prob_metadata.loc[idx, ['parameter', 'threshold']]
             final_dataset.attrs[f'Parameter_{idx}'] = (param, threshold)
 
         print('All files processed successfully!')

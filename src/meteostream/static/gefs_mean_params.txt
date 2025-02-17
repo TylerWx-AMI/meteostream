@@ -1,13 +1,13 @@
-idx_ID:description:units
-1:Significant height of combined wind waves and swell:meters
-2:Primary wave mean period:seconds 
-3:Primary wave direction:Degrees
-4:Significant height of wind waves:meters 
-5:Mean period of wind waves:seconds 
-6:Direction of wind waves:Degrees 
-7:Wind speed:m s**-1 
-8:Wind direction:Degrees
-9:Significant height of total swell:meters 
-10:Significant height of total swell:meters
-11:Mean period of total swell:seconds
-12:Mean period of total swell:seconds
+idx_ID:grb_shortName:parameter:unit:var_name
+1:swh:Mean Significant height of combined wind waves and swell:meters:swh
+2:perpw:Mean. Primary wave mean period:seconds:perpw
+3:dirpw:Mean Primary wave direction:degree:dirpw
+4:shww:Mean Significant height of wind waves:meters:shww
+5:mpww: Mean period of wind waves:seconds:mpww
+6:wvdir:Mean Direction of wind waves:degree:wvdir
+7:ws:Mean Wind speed:m s**-1:avg_ws
+8:wdir:Mean Wind direction:degree:wdir
+9:shts:Mean Significant height of total swell:meters: shts1
+10:shts:Mean Significant height of total swell:meters: shts2
+11:mpts: Mean period of total swell:seconds: mpts1
+12:mpts: Mean period of total swell:seconds: mpts2
